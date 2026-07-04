@@ -1,0 +1,67 @@
+/* ============ KODEX OS — дизайн-токены (палитра «Кодэкс: неон») ============ */
+:root {
+  /* Фоновые слои */
+  --bg-base: #05070a;
+  --bg-surface: #0a1013;
+  --bg-raised: #0d161b;
+  --bg-overlay: #12202a;
+  --bg-scrim: rgba(2, 3, 4, 0.78);
+
+  /* Акценты — неоновый след агентства */
+  --accent: #00ffab;
+  --accent-hover: #58ffcb;
+  --accent-pressed: #00c98a;
+  --accent-subtle: rgba(0, 255, 171, 0.10);
+  --accent-border: rgba(0, 255, 171, 0.38);
+  --info: #35c7ff;
+  --info-subtle: rgba(53, 199, 255, 0.12);
+  --info-border: rgba(53, 199, 255, 0.32);
+  --locked: #8B7FD6;
+  --locked-subtle: rgba(139, 127, 214, 0.12);
+  --locked-border: rgba(139, 127, 214, 0.32);
+
+  /* Семантика */
+  --success: #00ffab;
+  --success-subtle: rgba(0, 255, 171, 0.10);
+  --success-border: rgba(0, 255, 171, 0.32);
+  --error: #ff5c5c;
+  --error-subtle: rgba(255, 92, 92, 0.10);
+  --error-border: rgba(255, 92, 92, 0.32);
+  --warning: #E8A33D;
+  --warning-subtle: rgba(232, 163, 61, 0.12);
+  --warning-border: rgba(232, 163, 61, 0.32);
+
+  /* Текст */
+  --text-1: #e9f3f1;
+  --text-2: #8ea3a1;
+  --text-3: #52605f;
+  --text-on-accent: #04140f;
+
+  /* Обводки */
+  --border: rgba(0, 255, 171, 0.13);
+  --border-strong: rgba(0, 255, 171, 0.30);
+
+  /* Шрифты */
+  --font-display: 'JetBrains Mono', monospace;
+  --font-body: 'Golos Text', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: Georgia, 'Times New Roman', 'PT Serif', serif;
+
+  /* Радиусы */
+  --r-s: 4px;
+  --r-m: 6px;
+  --r-l: 10px;
+
+  /* Движение */
+  --m-instant: 80ms ease-out;
+  --m-quick: 160ms ease-out;
+  --m-standard: 240ms ease-in-out;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Тень и свечение */
+  --shadow-float: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --glow-accent: 0 0 24px rgba(0, 255, 171, 0.22);
+
+  /* Срез угла папки */
+  --folder-cut: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}

@@ -1,0 +1,16 @@
+{
+  "name": "kodex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex — образовательная игровая платформа. Монорепозиторий.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "node scripts/check.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
