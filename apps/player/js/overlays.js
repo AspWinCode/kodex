@@ -184,6 +184,7 @@ function renderJarvisActions() {
     log.push({ who: 'user', text: h.label });
     log.push({ who: 'bot', text: c.hints[lvl] });
     logEvent(`Наводка ${'I'.repeat(lvl)} по делу ${c.num}`, caseId);
+    logGameEvent('hint.delivered', { caseId, level: lvl, free: freeL1 });
     save();
     renderJarvisFeed();
     renderJarvisActions();

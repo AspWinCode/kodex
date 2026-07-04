@@ -29,6 +29,7 @@ function defaultState() {
     log: [],                // { time, text, caseId }
     jarvisLog: {},          // caseId → [ {who, text} ]
     introSeen: [],          // caseId[] — список дел, чьё кинематографическое вступление уже показано
+    events: [],             // журнал игровых событий (Event Bus/Game Event, см. js/engine.js)
   };
 }
 
@@ -56,7 +57,7 @@ function resetState() {
 function caseState(id) {
   if (!S.cases[id]) {
     S.cases[id] = {
-      status: 'available', stage: 'briefing', studied: [], code: null,
+      status: CASE_STATE.AVAILABLE, stage: 'briefing', studied: [], code: null,
       attempts: MAX_ATTEMPTS, hintsUsed: [], cooldownUntil: 0,
       solvedAt: null, claimed: false, tries: 0, versionOk: false, briefed: false,
       failStreak: 0,
@@ -67,10 +68,10 @@ function caseState(id) {
 
 function caseStatus(c) {
   const cs = S.cases[c.id];
-  if (cs && cs.status === 'solved') return 'solved';
-  if (cs && cs.status === 'active') return 'active';
-  if (c.rank > agentRank().level) return 'locked';
-  return 'available';
+  if (cs && cs.status === CASE_STATE.SOLVED) return CASE_STATE.SOLVED;
+  if (cs && cs.status === CASE_STATE.ACTIVE) return CASE_STATE.ACTIVE;
+  if (c.rank > agentRank().level) return CASE_STATE.LOCKED;
+  return CASE_STATE.AVAILABLE;
 }
 
 function agentRank() { return rankByRep(S.agent.reputation); }
@@ -96,9 +97,10 @@ function logEvent(text, caseId) {
 
 function takeCase(id) {
   const cs = caseState(id);
-  cs.status = 'active';
+  cs.status = CASE_STATE.ACTIVE;
   cs.stage = 'briefing';
   logEvent(`Дело ${caseById(id).num} взято в работу`, id);
+  logGameEvent('case.taken', { caseId: id });
   save();
 }
 
@@ -107,6 +109,7 @@ function grantBadge(id) {
     S.agent.badges.push(id);
     const b = BADGES.find(x => x.id === id);
     if (b) toast('accent', 'Новый значок', `${b.icon} «${b.name}»`);
+    logGameEvent('achievement.granted', { id });
   }
 }
 
@@ -114,17 +117,19 @@ function solveCase(id) {
   const c = caseById(id);
   const cs = caseState(id);
   const prevRank = agentRank().level;
-  cs.status = 'solved';
+  cs.status = CASE_STATE.SOLVED;
   cs.solvedAt = new Date().toLocaleDateString('ru-RU');
-  S.agent.credits += c.rewardCredits;
-  S.agent.reputation += c.rewardRep;
+  const reward = calcCaseReward(c);
+  S.agent.credits += reward.credits;
+  S.agent.reputation += reward.reputation;
   S.agent.streak += 1;
-  grantBadge('first-case');
-  if (cs.tries === 1) grantBadge('clean');
-  if (c.materials && cs.studied.length >= c.materials.length) grantBadge('bookworm');
-  if (S.agent.streak >= 3) grantBadge('streak3');
-  logEvent(`Дело ${c.num} раскрыто (+${c.rewardCredits} кр, +${c.rewardRep} реп)`, id);
+  logGameEvent('case.completed', { caseId: id, tries: cs.tries, hintsUsed: cs.hintsUsed.length });
+  logGameEvent('xp.awarded', { caseId: id, amount: reward.reputation });
+  logGameEvent('credits.awarded', { caseId: id, amount: reward.credits });
+  checkAchievements(c, cs).forEach(grantBadge);
+  logEvent(`Дело ${c.num} раскрыто (+${reward.credits} кр, +${reward.reputation} реп)`, id);
   const promoted = agentRank().level > prevRank;
+  if (promoted) logGameEvent('rank.promoted', { caseId: id, rank: agentRank().level });
   // следующий вызов от куратора
   queueNextCall();
   save();

@@ -1211,6 +1211,7 @@ function renderCheck(root, c, autorun) {
       save();
 
       if (!failed.length) {
+        logGameEvent('task.check_passed', { caseId: c.id, attemptsLeft: cs.attempts, tries: cs.tries });
         toast('success', 'Все улики подтверждены', 'Дело готово к закрытию, агент.');
         actions.innerHTML = `<button class="btn btn-primary btn-l btn-pulse" data-go="/case/${c.id}/report">Перейти к отчёту</button>`;
         bindCommon(actions);
@@ -1220,6 +1221,7 @@ function renderCheck(root, c, autorun) {
 
       cs.failStreak = (cs.failStreak || 0) + 1;
       const f = failed[0];
+      logGameEvent('task.check_failed', { caseId: c.id, evidenceId: f.ev.id, crashed: !!f.r.crashed });
       const detail = f.r.crashed
         ? `<div style="color:var(--error)">✗ ${esc(f.ev.name)}: обработчик остановился с ошибкой.</div>
            <div class="exp" style="margin-top:6px">${esc(f.r.error)}</div>`
