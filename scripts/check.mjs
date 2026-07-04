@@ -10,19 +10,21 @@
  *     минимум один тест, минимум одну подсказку, финал и брифинг.
  */
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const playerJsDir = join(root, 'apps/player/js');
+const gameDataDir = join(root, 'packages/game-data');
 
 let errors = 0;
 
 function walk(dir) {
   const out = [];
+  if (!existsSync(dir)) return out;
   for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules') continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) out.push(...walk(full));
     else if (extname(full) === '.js') out.push(full);
@@ -32,23 +34,26 @@ function walk(dir) {
 
 console.log('== Codex Quality Gate ==\n');
 
-// 1. Синтаксическая проверка
+// 1. Синтаксическая проверка — все .js во всех apps/* и packages/*
 console.log('-- Синтаксис --');
-for (const file of walk(playerJsDir)) {
-  const code = readFileSync(file, 'utf8');
-  try {
-    new vm.Script(code, { filename: file });
-    console.log(`  ok    ${file.replace(root, '')}`);
-  } catch (e) {
-    console.error(`  FAIL  ${file.replace(root, '')}: ${e.message}`);
-    errors++;
+const jsRoots = ['apps/player/js', 'apps/studio/js', 'packages'].map(p => join(root, p));
+for (const dir of jsRoots) {
+  for (const file of walk(dir)) {
+    const code = readFileSync(file, 'utf8');
+    try {
+      new vm.Script(code, { filename: file });
+      console.log(`  ok    ${file.replace(root, '')}`);
+    } catch (e) {
+      console.error(`  FAIL  ${file.replace(root, '')}: ${e.message}`);
+      errors++;
+    }
   }
 }
 
-// 2. Инварианты данных (data.js)
+// 2. Инварианты данных (packages/game-data/data.js — общий источник для Player и Studio)
 console.log('\n-- Инварианты игровых данных --');
 try {
-  const dataCode = readFileSync(join(playerJsDir, 'data.js'), 'utf8');
+  const dataCode = readFileSync(join(gameDataDir, 'data.js'), 'utf8');
   const ctx = {};
   vm.createContext(ctx);
   vm.runInContext(dataCode, ctx, { filename: 'data.js' });

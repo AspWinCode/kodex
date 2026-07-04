@@ -1,0 +1,6 @@
+{
+  "name": "@kodex/player",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex Player — игровой клиент агента."
+}

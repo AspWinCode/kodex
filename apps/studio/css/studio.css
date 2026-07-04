@@ -1,0 +1,97 @@
+/* ============ Codex Studio — минимальный редактор дел ============ *
+ * Использует токены дизайн-системы Player (../player/css/tokens.css)
+ * напрямую — незачем дублировать палитру ради внутреннего инструмента. */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: var(--font-body);
+  min-height: 100vh;
+}
+
+#app { max-width: 1100px; margin: 0 auto; padding: 28px 24px 80px; }
+
+.st-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.st-header h1 { font-family: var(--font-display); font-size: 18px; letter-spacing: .04em; margin: 0; }
+.st-header .st-sub { color: var(--text-2); font-size: 12px; font-family: var(--font-mono); margin-top: 4px; }
+
+.st-btn {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .03em;
+  padding: 9px 16px; border-radius: var(--r-m); cursor: pointer;
+  border: 1px solid var(--border-strong); background: transparent; color: var(--text-1);
+  transition: background var(--m-quick), border-color var(--m-quick);
+}
+.st-btn:hover { background: var(--accent-subtle); border-color: var(--accent-border); }
+.st-btn-primary { background: var(--accent-subtle); border-color: var(--accent-border); color: var(--accent); }
+.st-btn-primary:hover { background: var(--accent); color: var(--text-on-accent); }
+.st-btn-danger { border-color: var(--error-border); color: var(--error); }
+.st-btn-danger:hover { background: var(--error-subtle); }
+.st-btn-s { padding: 5px 10px; font-size: 11px; }
+.st-btn[disabled] { opacity: .4; cursor: not-allowed; }
+
+.st-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.st-table th {
+  text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em;
+  color: var(--text-3); text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--border);
+}
+.st-table td { padding: 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+.st-table tr:hover td { background: var(--bg-surface); }
+
+.st-badge {
+  display: inline-block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border-strong);
+}
+.st-badge-edited { color: var(--info); border-color: var(--info-border); background: var(--info-subtle); }
+.st-badge-new { color: var(--accent); border-color: var(--accent-border); background: var(--accent-subtle); }
+.st-badge-off { color: var(--text-3); }
+
+.st-form { display: flex; flex-direction: column; gap: 18px; margin-top: 20px; }
+.st-field { display: flex; flex-direction: column; gap: 6px; }
+.st-field label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; color: var(--text-2);
+}
+.st-field .st-hint { font-size: 11px; color: var(--text-3); }
+.st-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+
+input[type=text], input[type=number], textarea, select {
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-s);
+  color: var(--text-1); font-family: var(--font-body); font-size: 13px; padding: 9px 10px;
+  width: 100%;
+}
+textarea.st-mono { font-family: var(--font-mono); font-size: 12px; line-height: 1.6; }
+textarea { resize: vertical; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-border); }
+
+.st-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+.st-errors {
+  background: var(--error-subtle); border: 1px solid var(--error-border); border-radius: var(--r-m);
+  padding: 12px 14px; font-size: 12px; color: var(--error);
+}
+.st-errors ul { margin: 6px 0 0; padding-left: 18px; }
+
+.st-actions { display: flex; gap: 10px; margin-top: 8px; }
+
+.st-toast-root {
+  position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 100;
+}
+.st-toast {
+  background: var(--bg-raised); border: 1px solid var(--border-strong); border-radius: var(--r-m);
+  padding: 10px 14px; font-size: 12px; box-shadow: var(--shadow-float); max-width: 320px;
+}
+.st-toast-error { border-color: var(--error-border); color: var(--error); }
+.st-toast-success { border-color: var(--accent-border); color: var(--accent); }
+
+.st-export {
+  width: 100%; min-height: 260px; font-family: var(--font-mono); font-size: 11px;
+  background: var(--bg-surface); color: var(--text-1); border: 1px solid var(--border); border-radius: var(--r-s);
+  padding: 12px;
+}
+
+a.st-link { color: var(--info); text-decoration: none; font-family: var(--font-mono); font-size: 12px; }
+a.st-link:hover { text-decoration: underline; }

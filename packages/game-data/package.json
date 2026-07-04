@@ -1,0 +1,6 @@
+{
+  "name": "@kodex/game-data",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Единый источник данных мира Codex (дела, кураторы, ранги, награды) — читается и Player, и Studio."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@kodex/studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex Studio — минимальный Case Editor для методистов."
+}
