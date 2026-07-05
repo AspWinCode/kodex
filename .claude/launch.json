@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "kodex-player",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "4173"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["services/content-api/server.mjs"],
       "port": 4173
     }
   ]

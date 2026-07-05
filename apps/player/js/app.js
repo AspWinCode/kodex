@@ -223,6 +223,11 @@ window.addEventListener('online', () => {
   if (ov) { ov.remove(); toast('success', 'Связь восстановлена', 'Сеанс продолжен с сохранённым прогрессом.'); }
 });
 
-/* ---------- старт ---------- */
-if (!location.hash) location.hash = S.onboarded ? '/hub' : '/onboarding';
-route();
+/* ---------- старт ---------- *
+ * Дожидаемся applyStudioOverrides (content-overrides.js) — сетевой запрос
+ * к content-api за правками Studio — прежде чем маршрутизировать первый
+ * экран, иначе игрок иногда увидел бы дело без свежей правки методиста. */
+Promise.resolve(window.__CONTENT_READY__).then(() => {
+  if (!location.hash) location.hash = S.onboarded ? '/hub' : '/onboarding';
+  route();
+});

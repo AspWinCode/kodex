@@ -1,0 +1,9 @@
+{
+  "name": "@kodex/content-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Минимальный сервис Codex: раздаёт статику apps/packages и хранит Studio-правки в общем JSON-файле (первая версия реального Publishing, без БД и фреймворков).",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

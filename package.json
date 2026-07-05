@@ -5,10 +5,12 @@
   "description": "Codex — образовательная игровая платформа. Монорепозиторий.",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "services/*"
   ],
   "scripts": {
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "start": "node services/content-api/server.mjs"
   },
   "engines": {
     "node": ">=18"

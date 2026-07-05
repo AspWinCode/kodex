@@ -14,6 +14,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const gameDataDir = join(root, 'packages/game-data');
@@ -27,24 +28,28 @@ function walk(dir) {
     if (entry === 'node_modules') continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) out.push(...walk(full));
-    else if (extname(full) === '.js') out.push(full);
+    else if (extname(full) === '.js' || extname(full) === '.mjs') out.push(full);
   }
   return out;
 }
 
 console.log('== Codex Quality Gate ==\n');
 
-// 1. Синтаксическая проверка — все .js во всех apps/* и packages/*
+// 1. Синтаксическая проверка — все .js/.mjs во всех apps/*, packages/*, services/*
+// .js — файлы браузерного стиля (без import/export), проверяются как classic script;
+// .mjs — настоящие ES-модули (services/content-api), проверяются через `node --check`,
+// потому что vm.Script не умеет парсить синтаксис модулей (import/export/top-level await).
 console.log('-- Синтаксис --');
-const jsRoots = ['apps/player/js', 'apps/studio/js', 'packages'].map(p => join(root, p));
+const jsRoots = ['apps/player/js', 'apps/studio/js', 'packages', 'services'].map(p => join(root, p));
 for (const dir of jsRoots) {
   for (const file of walk(dir)) {
     const code = readFileSync(file, 'utf8');
     try {
-      new vm.Script(code, { filename: file });
+      if (extname(file) === '.mjs') execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
+      else new vm.Script(code, { filename: file });
       console.log(`  ok    ${file.replace(root, '')}`);
     } catch (e) {
-      console.error(`  FAIL  ${file.replace(root, '')}: ${e.message}`);
+      console.error(`  FAIL  ${file.replace(root, '')}: ${(e.stderr || e.message || '').toString().split('\n')[0]}`);
       errors++;
     }
   }
