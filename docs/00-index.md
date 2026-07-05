@@ -5,23 +5,23 @@
 | № | Документ | Статус |
 |---|---|---|
 | 01 | Codex Player — UX-архитектура и экраны | не восстановлен дословно (создан на раннем этапе проектирования, до сжатия контекста сессии); текущая реализация в `apps/player` соответствует ему по духу, но письменный документ предстоит восстановить или переписать заново |
-| 02 | [Engine Architecture](02-engine-architecture.md) | ✅ архивирован |
-| 03 | Content Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 04 | Educational / Learning Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 05 | Universe Bible | 📋 согласован в сессии, ожидает архивирования файлом |
-| 06 | Domain Model | 📋 согласован в сессии, ожидает архивирования файлом |
-| 07 | AI Generation Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 08 | Content Production Pipeline | 📋 согласован в сессии, ожидает архивирования файлом |
+| 02 | [Engine Architecture](02-engine-architecture.md) | ✅ архивирован (частично аспирационный — см. пояснение в документе) |
+| 03 | [Content Architecture](03-content-architecture.md) | ✅ архивирован — описывает реальную схему дела |
+| 04 | [Learning Architecture](04-learning-architecture.md) | ✅ архивирован — реальные 9 модулей программы |
+| 05 | [Universe Bible](05-universe-bible.md) | ✅ архивирован |
+| 06 | [Domain Model](06-domain-model.md) | ✅ архивирован |
+| 07 | [AI Generation Architecture](07-ai-generation-architecture.md) | ✅ архивирован |
+| 08 | [Content Production Pipeline](08-content-production-pipeline.md) | ✅ архивирован |
 | 09 | Studio Architecture | 🟡 частично реализовано: версии/история + рецензия (draft → in_review → approved/changes_requested) готовы; совместное редактирование нескольких методистов одного дела одновременно — остаётся будущей работой |
-| 10 | Technical Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 11 | Database Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 12 | API Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 13 | Event Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 14 | Backend Architecture | 📋 согласован в сессии, ожидает архивирования файлом |
-| 15 | Engineering Handbook | 📋 согласован в сессии, ожидает архивирования файлом |
-| 16 | Product Delivery Roadmap | 📋 согласован в сессии, ожидает архивирования файлом |
+| 10 | [Technical Architecture](10-technical-architecture.md) | ✅ архивирован |
+| 11 | [Database Architecture](11-database-architecture.md) | ✅ архивирован — честно фиксирует отсутствие БД |
+| 12 | [API Architecture](12-api-architecture.md) | ✅ архивирован |
+| 13 | [Event Architecture](13-event-architecture.md) | ✅ архивирован |
+| 14 | [Backend Architecture](14-backend-architecture.md) | ✅ архивирован |
+| 15 | [Engineering Handbook](15-engineering-handbook.md) | ✅ архивирован |
+| 16 | [Product Delivery Roadmap](16-product-delivery-roadmap.md) | ✅ архивирован — заменяет устаревшую оценку «8 сезонов, ~66 дел» из `CHANGELOG.md` v1.0.0 |
 
-Документы 03–16 полностью утверждены (их содержание уже определяет реализацию в этом репозитории), но ещё не перенесены из истории обсуждения в файлы — это отдельная задача каталогизации, не блокирующая Foundation. Engine Architecture перенесён первым как образец оформления.
+Документы 03–08, 10–16 перенесены из истории обсуждения ранней сессии в файлы, но их содержание не восстановлено дословно (та история недоступна) — вместо этого каждый документ описывает **реально реализованное** на момент переноса состояние платформы, с честными пометками там, где реализация проще или отличается от изначального замысла (см., например, `02-engine-architecture.md` — более сложная событийная модель, чем реализованный `apps/player/js/engine.js`). Документ 09 (Studio Architecture) остаётся частично нереализованным и не архивирован полностью.
 
 ## Текущее состояние реализации
 
