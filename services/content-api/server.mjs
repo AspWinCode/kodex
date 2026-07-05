@@ -23,11 +23,27 @@ import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
+import { generateDraftCase, currentProviderName } from './ai/gateway.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA_DIR = fileURLToPath(new URL('./data', import.meta.url));
 const CONTENT_FILE = path.join(DATA_DIR, 'studio-content.json');
+const SEED_FILE = path.join(ROOT, 'packages/game-data/data.js');
 const PORT = Number(process.env.PORT) || 4173;
+
+async function readSeedCaseIds() {
+  try {
+    const code = await readFile(SEED_FILE, 'utf8');
+    const ctx = {};
+    vm.createContext(ctx);
+    vm.runInContext(code, ctx, { filename: 'data.js' });
+    const cases = vm.runInContext('CASES', ctx) || [];
+    return cases.map(c => c.id);
+  } catch (e) {
+    return [];
+  }
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -102,7 +118,27 @@ function sendJson(res, code, obj) {
 }
 
 async function handleApi(req, res, pathname) {
-  if (pathname === '/api/health') { sendJson(res, 200, { ok: true }); return true; }
+  if (pathname === '/api/health') { sendJson(res, 200, { ok: true, aiProvider: currentProviderName() }); return true; }
+
+  // POST /api/generate-draft — черновик дела через AI Gateway (ai/gateway.mjs).
+  // Ничего не сохраняет — только возвращает объект дела для доработки в Studio;
+  // публикуется он тем же PUT /api/content/:id, что и любая ручная правка,
+  // и проходит тот же гейт качества (AI не имеет привилегированного пути записи —
+  // см. AI Generation Architecture, docs/07, раздел 7).
+  if (pathname === '/api/generate-draft' && req.method === 'POST') {
+    let payload;
+    try { payload = (await readJsonBody(req)) || {}; } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
+    const store = await readContentStore();
+    const seedIds = await readSeedCaseIds();
+    const existingIds = [...new Set([...seedIds, ...Object.keys(store.cases)])];
+    try {
+      const draft = await generateDraftCase({ topic: payload.topic, existingIds });
+      sendJson(res, 200, { draft, provider: currentProviderName() });
+    } catch (e) {
+      sendJson(res, 500, { error: e.message });
+    }
+    return true;
+  }
 
   if (pathname === '/api/content' && req.method === 'GET') {
     const store = await readContentStore();
@@ -121,7 +157,8 @@ async function handleApi(req, res, pathname) {
     payload.id = id;
 
     const store = await readContentStore();
-    const existingIds = Object.keys(store.cases).filter(x => x !== id);
+    const seedIds = await readSeedCaseIds();
+    const existingIds = [...new Set([...seedIds, ...Object.keys(store.cases)])].filter(x => x !== id);
     const errors = validateCase(payload, existingIds);
     if (errors.length) { sendJson(res, 422, { errors }); return true; }
 

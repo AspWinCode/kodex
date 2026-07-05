@@ -45,13 +45,25 @@ const JSON_FIELDS = [
 ];
 
 /* ---------- маршрутизация ---------- */
+let pendingDraft = null; // черновик от AI Gateway, ждущий редактирования (ещё не сохранён)
+
 async function route() {
   const raw = location.hash.replace(/^#\/?/, '');
+  if (raw === 'edit/draft' && pendingDraft) return renderEditor('new', pendingDraft);
   if (raw.startsWith('edit/')) return renderEditor(raw.slice(5));
   if (raw === 'export') return renderExport();
   return renderList();
 }
 window.addEventListener('hashchange', route);
+
+const AI_TOPICS = [
+  ['if', 'Условие (if/else)'],
+  ['while', 'Цикл while'],
+  ['loop', 'Накопление в цикле (for)'],
+  ['dict', 'Словарь/реестр'],
+  ['multi-return', 'Несколько возвращаемых значений'],
+  ['generic', 'Общий скелет'],
+];
 
 /* ---------- список дел ---------- */
 async function renderList() {
@@ -67,8 +79,10 @@ async function renderList() {
         <h1>CODEX STUDIO</h1>
         <div class="st-sub">Редактор дел · ${cases.length} всего · правки хранятся на сервере (services/content-api), общие для всех</div>
       </div>
-      <div style="display:flex;gap:10px">
-        <a class="st-link" href="#/export" style="align-self:center">Экспорт правок →</a>
+      <div style="display:flex;gap:10px;align-items:center">
+        <select id="ai-topic" title="Тема черновика">${AI_TOPICS.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>
+        <button class="st-btn" id="ai-generate">✨ Сгенерировать черновик</button>
+        <a class="st-link" href="#/export">Экспорт правок →</a>
         <button class="st-btn st-btn-primary" id="new-case">+ Создать дело</button>
       </div>
     </div>
@@ -97,6 +111,22 @@ async function renderList() {
   `;
 
   APP.querySelector('#new-case').onclick = () => { location.hash = '#/edit/new'; };
+  APP.querySelector('#ai-generate').onclick = async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Генерирую…';
+    try {
+      const topic = APP.querySelector('#ai-topic').value;
+      const { draft, provider } = await generateDraftCase(topic);
+      pendingDraft = draft;
+      toast('success', `Черновик готов (провайдер: ${provider}) — доработайте и сохраните`);
+      location.hash = '#/edit/draft';
+    } catch (err) {
+      toast('error', 'Не удалось сгенерировать черновик: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = '✨ Сгенерировать черновик';
+    }
+  };
   APP.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { location.hash = '#/edit/' + b.dataset.edit; });
   APP.querySelectorAll('[data-reset]').forEach(b => b.onclick = async () => {
     if (!confirm(`Сбросить правки для «${b.dataset.reset}» к исходному сиду?`)) return;
@@ -107,23 +137,24 @@ async function renderList() {
 }
 
 /* ---------- форма редактирования / создания ---------- */
-async function renderEditor(id) {
+async function renderEditor(id, preset) {
   const isNew = id === 'new';
   APP.innerHTML = `<div class="st-header"><h1>${isNew ? 'НОВОЕ ДЕЛО' : 'РЕДАКТИРОВАНИЕ'}</h1></div><p class="st-sub">Загрузка…</p>`;
 
   const seed = isNew ? null : (await mergedCasesView(CASES)).find(c => c.id === id);
-  const c = seed ? Object.assign({}, seed) : {
+  const c = preset || seed || {
     id: '', num: '', title: '', curator: Object.keys(CURATORS)[0], rank: 1, difficulty: 1,
     rewardCredits: 40, rewardRep: 60, anno: '', goal: '', suspects: '', playable: true,
     task: '', fnName: '', starter: '',
     briefing: [], materials: [], evidence: [], hints: {}, versions: [], finale: [],
   };
+  if (preset) pendingDraft = null; // черновик потреблён — не подставлять его повторно при обновлении хэша
 
   APP.innerHTML = `
     <div class="st-header">
       <div>
         <h1>${isNew ? 'НОВОЕ ДЕЛО' : 'РЕДАКТИРОВАНИЕ · ' + esc(id)}</h1>
-        <div class="st-sub">Сохранение идёт на сервер (services/content-api) — Player подхватит правку сразу, с любого браузера</div>
+        <div class="st-sub">${preset ? '✨ Черновик сгенерирован шаблонным AI-провайдером — замените поля [ЗАПОЛНИТЕ] перед сохранением. ' : ''}Сохранение идёт на сервер (services/content-api) — Player подхватит правку сразу, с любого браузера</div>
       </div>
       <a class="st-link" href="#/">← К списку дел</a>
     </div>

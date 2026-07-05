@@ -45,6 +45,25 @@ async function removeStudioOverride(id) {
   await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+/**
+ * Запрашивает черновик дела у AI Gateway (services/content-api/ai/gateway.mjs) —
+ * ничего не сохраняет, только возвращает объект для доработки и последующего
+ * upsertStudioCase. topic — один из ключей шаблонов ('if','while','loop','dict',
+ * 'multi-return') либо произвольная строка (тогда провайдер отдаст общий скелет).
+ */
+async function generateDraftCase(topic) {
+  const res = await fetch('/api/generate-draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `не удалось сгенерировать черновик (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
 async function isStudioOverridden(id) {
   const store = await loadStudioOverrides();
   return Object.prototype.hasOwnProperty.call(store.cases, id);
