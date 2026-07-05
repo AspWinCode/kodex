@@ -1071,21 +1071,26 @@ function renderBench(root, c) {
   };
 
   const out = root.querySelector('#console-out');
-  root.querySelector('#dry-run').onclick = () => {
+  root.querySelector('#dry-run').onclick = async () => {
     cs.code = ta.value; save();
-    const compiled = compileAgentFn(cs.code, c.fnName);
-    if (compiled.error) {
-      out.innerHTML = `<span class="err">✗ Улика повреждена: обработчик не запустился.</span>\n<span class="dim">${esc(compiled.error)}</span>`;
+    out.innerHTML = `<span class="dim">Отправка на сервер…</span>`;
+    // Черновой прогон проверяет только первый тест каждой улики — быстрый
+    // предпросмотр, не тратящий попытку (сама попытка списывается только
+    // на «Отправить на проверку», см. #submit ниже).
+    const preview = c.evidence.map(ev => ({ id: ev.id, tests: [ev.tests[0]] }));
+    const response = await runOnServer(cs.code, c.fnName, preview);
+    if (response.compileError) {
+      out.innerHTML = `<span class="err">✗ Улика повреждена: обработчик не запустился.</span>\n<span class="dim">${esc(response.compileError)}</span>`;
       return;
     }
-    let lines = [];
-    for (const ev of c.evidence) {
+    const byId = Object.fromEntries((response.results || []).map(r => [r.evidenceId, r]));
+    const lines = c.evidence.map(ev => {
       const t = ev.tests[0];
-      let got, crashed = false;
-      try { got = compiled.fn(...t.args.map(a => Array.isArray(a) ? a.slice() : a)); } catch (e) { crashed = true; got = e.message; }
-      const ok = !crashed && JSON.stringify(got) === JSON.stringify(t.expect);
-      lines.push(`${ok ? '<span class="ok">✓</span>' : '<span class="err">✗</span>'} ${esc(fmtCall(c.fnName, t.args))} → ${esc(fmtVal(got))} <span class="dim">(ожидалось: ${esc(fmtVal(t.expect))})</span>`);
-    }
+      const r = byId[ev.id];
+      const ok = r && r.pass;
+      const got = r ? (r.crashed ? r.error : (r.pass ? t.expect : r.got)) : 'нет ответа';
+      return `${ok ? '<span class="ok">✓</span>' : '<span class="err">✗</span>'} ${esc(fmtCall(c.fnName, t.args))} → ${esc(fmtVal(got))} <span class="dim">(ожидалось: ${esc(fmtVal(t.expect))})</span>`;
+    });
     out.innerHTML = lines.join('\n');
   };
 
@@ -1162,30 +1167,37 @@ function renderCheck(root, c, autorun) {
     bindCommon(root);
   } else runCheck();
 
-  function runCheck() {
+  async function runCheck() {
     if (cs.attempts <= 0) { toast('warning', 'Попытки исчерпаны', 'Верстак на паузе — загляните туда.'); return; }
     actions.innerHTML = '';
     root.querySelector('#check-detail').innerHTML = '';
     cs.attempts -= 1; cs.tries += 1; save();
     root.querySelector('#chk-att').innerHTML = attemptsDots(cs.attempts, MAX_ATTEMPTS);
 
-    const compiled = compileAgentFn(cs.code || '', c.fnName);
     const rows = [...root.querySelectorAll('.check-row')];
-    const results = [];
+    rows.forEach(r => { r.className = 'check-row running'; r.querySelector('.check-row-status').innerHTML = `<span class="spinner"></span> отправка на сервер…`; });
 
-    if (compiled.error) {
+    // Исполнение решения — на сервере, в изолированном Python-раннере
+    // (services/python-runner), а не в браузере: см. Technical Architecture,
+    // Runner — самый критичный по безопасности компонент платформы.
+    const response = await runOnServer(cs.code || '', c.fnName, c.evidence);
+
+    if (response.compileError) {
       // решение не запустилось — попытку возвращаем
       cs.attempts += 1; cs.tries -= 1; save();
       root.querySelector('#chk-att').innerHTML = attemptsDots(cs.attempts, MAX_ATTEMPTS);
       rows.forEach(r => { r.className = 'check-row fail'; r.querySelector('.check-row-status').innerHTML = `${ICONS.cross} не запускалась`; });
       root.querySelector('#check-detail').innerHTML = `<div class="check-detail">
         <div style="color:var(--error)">✗ Обработчик не запустился — попытка не списана.</div>
-        <div class="exp" style="margin-top:6px">${esc(compiled.error)}</div>
+        <div class="exp" style="margin-top:6px">${esc(response.compileError)}</div>
       </div>`;
       actions.innerHTML = `<button class="btn btn-primary" data-go="/case/${c.id}/bench">Вернуться на верстак</button>`;
       bindCommon(actions);
       return;
     }
+
+    const resultByEvId = Object.fromEntries((response.results || []).map(r => [r.evidenceId, r]));
+    const results = c.evidence.map(ev => resultByEvId[ev.id] || { pass: false, crashed: true, error: 'Раннер не вернул результат по этой улике' });
 
     let i = 0;
     function step() {
@@ -1199,7 +1211,6 @@ function renderCheck(root, c, autorun) {
       const row = rows[i];
       row.className = 'check-row running';
       row.querySelector('.check-row-status').innerHTML = `<span class="spinner"></span> сверка…`;
-      results.push(runTests(compiled.fn, c.evidence[i].tests));
       i++;
       setTimeout(step, 550);
     }
@@ -1531,12 +1542,13 @@ function renderDrill(root, id, fromCase) {
   </div>`;
   const ta = root.querySelector('#drill-code');
   ta.addEventListener('input', () => { ps.code = ta.value; save(); });
-  root.querySelector('#drill-run').onclick = () => {
+  root.querySelector('#drill-run').onclick = async () => {
     ps.code = ta.value; save();
-    const compiled = compileAgentFn(ps.code, d.fnName);
     const out = root.querySelector('#drill-out');
-    if (compiled.error) { out.innerHTML = `<span class="err">✗ ${esc(compiled.error)}</span>`; return; }
-    const res = runTests(compiled.fn, d.tests);
+    out.innerHTML = `<span class="dim">Отправка на сервер…</span>`;
+    const response = await runOnServer(ps.code, d.fnName, [{ id: 'drill', tests: d.tests }]);
+    if (response.compileError) { out.innerHTML = `<span class="err">✗ ${esc(response.compileError)}</span>`; return; }
+    const res = (response.results || [])[0] || { pass: false, crashed: true, error: 'Раннер не вернул результат' };
     if (res.pass) {
       if (!ps.done) {
         ps.done = true;

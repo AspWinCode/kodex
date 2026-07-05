@@ -90,26 +90,24 @@ function typeText(node, text, speed, done) {
   tick();
 }
 
-/* ---------- авточекер ---------- */
-function compileAgentFn(code, fnName) {
+/* ---------- авточекер ---------- *
+ * Исполнение решения агента происходит НЕ в браузере (было — new Function()
+ * прямо здесь), а на сервере, в изолированном Python-раннере
+ * (services/python-runner) — см. Technical Architecture, Runner. Один вызов
+ * возвращает результат сразу по всем уликам (evidence), каждая — со своим
+ * набором тестов; сервер останавливается на первом провалившемся тесте
+ * внутри улики, как раньше делал runTests() локально. */
+async function runOnServer(code, fnName, evidence) {
   try {
-    const fn = new Function(`"use strict";\n${code}\n;return (typeof ${fnName} !== 'undefined') ? ${fnName} : undefined;`)();
-    if (typeof fn !== 'function') return { error: `Обработчик «${fnName}» не найден в решении` };
-    return { fn };
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, fnName, evidence }),
+    });
+    return await res.json();
   } catch (e) {
-    return { error: e.message };
+    return { compileError: 'Не удалось связаться с сервером проверки: ' + e.message };
   }
-}
-
-function runTests(fn, tests) {
-  for (const t of tests) {
-    let got;
-    try { got = fn(...t.args.map(a => Array.isArray(a) ? a.slice() : a)); }
-    catch (e) { return { pass: false, crashed: true, test: t, error: e.message }; }
-    const ok = JSON.stringify(got) === JSON.stringify(t.expect);
-    if (!ok) return { pass: false, test: t, got };
-  }
-  return { pass: true };
 }
 
 function fmtVal(v) {

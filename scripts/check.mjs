@@ -21,16 +21,23 @@ const gameDataDir = join(root, 'packages/game-data');
 
 let errors = 0;
 
-function walk(dir) {
+function walk(dir, exts) {
   const out = [];
   if (!existsSync(dir)) return out;
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules') continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) out.push(...walk(full));
-    else if (extname(full) === '.js' || extname(full) === '.mjs') out.push(full);
+    if (statSync(full).isDirectory()) out.push(...walk(full, exts));
+    else if (exts.includes(extname(full))) out.push(full);
   }
   return out;
+}
+
+function findPython() {
+  for (const bin of ['python3', 'python']) {
+    try { execFileSync(bin, ['--version'], { stdio: 'pipe' }); return bin; } catch (e) { /* пробуем следующий */ }
+  }
+  return null;
 }
 
 console.log('== Codex Quality Gate ==\n');
@@ -42,7 +49,7 @@ console.log('== Codex Quality Gate ==\n');
 console.log('-- Синтаксис --');
 const jsRoots = ['apps/player/js', 'apps/studio/js', 'packages', 'services'].map(p => join(root, p));
 for (const dir of jsRoots) {
-  for (const file of walk(dir)) {
+  for (const file of walk(dir, ['.js', '.mjs'])) {
     const code = readFileSync(file, 'utf8');
     try {
       if (extname(file) === '.mjs') execFileSync(process.execPath, ['--check', file], { stdio: 'pipe' });
@@ -53,6 +60,23 @@ for (const dir of jsRoots) {
       errors++;
     }
   }
+}
+
+// .py — харнесс Python Runner. vm.Script/node --check не умеют разбирать
+// Python — используем сам интерпретатор (py_compile), если он доступен.
+const pythonBin = findPython();
+if (pythonBin) {
+  for (const file of walk(join(root, 'services'), ['.py'])) {
+    try {
+      execFileSync(pythonBin, ['-m', 'py_compile', file], { stdio: 'pipe' });
+      console.log(`  ok    ${file.replace(root, '')}`);
+    } catch (e) {
+      console.error(`  FAIL  ${file.replace(root, '')}: ${(e.stderr || e.message || '').toString().split('\n')[0]}`);
+      errors++;
+    }
+  }
+} else {
+  console.log('  (python не найден в PATH — синтаксис .py файлов не проверен)');
 }
 
 // 2. Инварианты данных (packages/game-data/data.js — общий источник для Player и Studio)

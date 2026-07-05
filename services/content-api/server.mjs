@@ -25,6 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { generateDraftCase, currentProviderName } from './ai/gateway.mjs';
+import { runPython, runnerModeDescription } from './runner/python-runner.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA_DIR = fileURLToPath(new URL('./data', import.meta.url));
@@ -179,7 +180,24 @@ function sendJson(res, code, obj) {
 }
 
 async function handleApi(req, res, pathname) {
-  if (pathname === '/api/health') { sendJson(res, 200, { ok: true, aiProvider: currentProviderName() }); return true; }
+  if (pathname === '/api/health') { sendJson(res, 200, { ok: true, aiProvider: currentProviderName(), pythonRunner: runnerModeDescription() }); return true; }
+
+  // POST /api/run — исполнение решения агента (Evaluation Engine).
+  // Раньше это делалось в браузере через new Function() — теперь через
+  // изолированный Python-раннер (services/python-runner). Принимает код,
+  // имя функции и улики с тестами; возвращает per-evidence pass/fail —
+  // именно то, что раньше вычисляла runTests() в apps/player/js/ui.js.
+  if (pathname === '/api/run' && req.method === 'POST') {
+    let payload;
+    try { payload = await readJsonBody(req); } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
+    if (!payload || !payload.fnName || !Array.isArray(payload.evidence)) {
+      sendJson(res, 400, { error: 'ожидались code, fnName, evidence' });
+      return true;
+    }
+    const result = await runPython({ code: payload.code || '', fnName: payload.fnName, evidence: payload.evidence });
+    sendJson(res, 200, result);
+    return true;
+  }
 
   // POST /api/generate-draft — черновик дела через AI Gateway (ai/gateway.mjs).
   // Ничего не сохраняет — только возвращает объект дела для доработки в Studio;
@@ -305,4 +323,8 @@ await ensureContentFile();
 await ensureEventsFile();
 server.listen(PORT, () => {
   console.log(`Codex content-api + static: http://localhost:${PORT} (данные: ${CONTENT_FILE})`);
+  console.log(`Python Runner: ${runnerModeDescription()}`);
+  if ((process.env.PYTHON_RUNNER_MODE || 'docker') === 'unsafe-local-dev') {
+    console.warn('!!! PYTHON_RUNNER_MODE=unsafe-local-dev — исполнение БЕЗ ИЗОЛЯЦИИ. Только для локальной разработки. Никогда не использовать в проде.');
+  }
 });

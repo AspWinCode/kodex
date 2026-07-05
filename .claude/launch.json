@@ -5,7 +5,8 @@
       "name": "kodex-player",
       "runtimeExecutable": "node",
       "runtimeArgs": ["services/content-api/server.mjs"],
-      "port": 4173
+      "port": 4173,
+      "env": { "PYTHON_RUNNER_MODE": "unsafe-local-dev" }
     }
   ]
 }
