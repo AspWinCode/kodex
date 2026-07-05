@@ -72,14 +72,49 @@ async function readContentStore() {
   try {
     const raw = await readFile(CONTENT_FILE, 'utf8');
     const parsed = JSON.parse(raw);
-    return { cases: (parsed && parsed.cases) || {} };
+    return {
+      cases: (parsed && parsed.cases) || {},
+      meta: (parsed && parsed.meta) || {},
+      history: (parsed && parsed.history) || {},
+    };
   } catch (e) {
-    return { cases: {} };
+    return { cases: {}, meta: {}, history: {} };
   }
 }
 
 async function writeContentStore(store) {
   await writeFile(CONTENT_FILE, JSON.stringify(store, null, 2));
+}
+
+/* ---------- версии и рецензия (Studio Architecture, docs/09) ---------- *
+ * Честная оговорка: в системе нет аутентификации/ролей (см. README) — имя
+ * автора/рецензента приходит заголовком X-Studio-Author, который клиент
+ * может подставить любым. Это идентификация «на доверии» для внутреннего
+ * инструмента одной команды, а не защита от злоумышленника — как и весь
+ * остальной Studio API (см. Engineering Handbook про доверенных пользователей
+ * этого конкретного эндпоинта). Что реально работает: история версий
+ * (снапшот при каждом сохранении, восстановление любой из них) и статусный
+ * цикл draft → in_review → approved/changes_requested. Player видит только
+ * approved-правки (и легаси-правки без meta — сохранены до внедрения этой
+ * функции, чтобы не «погасить» уже опубликованный контент задним числом). */
+
+function authorFromRequest(req) {
+  const raw = req.headers['x-studio-author'];
+  const name = Array.isArray(raw) ? raw[0] : raw;
+  if (!name) return 'Аноним';
+  // Клиент кодирует encodeURIComponent (заголовки ограничены ISO-8859-1,
+  // кириллица иначе не проходит через fetch) — декодируем обратно.
+  let decoded;
+  try { decoded = decodeURIComponent(String(name)); } catch (e) { decoded = String(name); }
+  return decoded.trim().slice(0, 60) || 'Аноним';
+}
+
+function pushHistory(store, id, snapshot, author) {
+  const list = store.history[id] || (store.history[id] = []);
+  const version = list.length ? list[list.length - 1].version + 1 : 1;
+  list.push({ version, savedAt: Date.now(), author, snapshot: JSON.parse(JSON.stringify(snapshot)) });
+  if (list.length > 20) list.splice(0, list.length - 20);
+  return version;
 }
 
 /* ---------- журнал игровых событий (Analytics, v0.5) ---------- *
@@ -187,7 +222,7 @@ function sendJson(res, code, obj) {
   res.end(body);
 }
 
-async function handleApi(req, res, pathname) {
+async function handleApi(req, res, pathname, query) {
   if (pathname === '/api/health') { sendJson(res, 200, { ok: true, aiProvider: currentProviderName(), pythonRunner: runnerModeDescription() }); return true; }
 
   // POST /api/run — исполнение решения агента (Evaluation Engine).
@@ -227,15 +262,28 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  // GET /api/content — по умолчанию отдаёт только то, что реально должно
+  // играться (Player): approved-правки и легаси-правки без записи meta
+  // (сохранены до внедрения рецензии — не гасим уже опубликованное задним
+  // числом). ?all=1 — полный стор со всеми статусами, для Studio.
   if (pathname === '/api/content' && req.method === 'GET') {
     const store = await readContentStore();
-    sendJson(res, 200, store);
+    const showAll = query.get('all') === '1';
+    if (showAll) { sendJson(res, 200, store); return true; }
+    const cases = {};
+    for (const [cid, c] of Object.entries(store.cases)) {
+      const status = store.meta[cid] && store.meta[cid].status;
+      if (!status || status === 'approved') cases[cid] = c;
+    }
+    sendJson(res, 200, { cases, meta: {}, history: {} });
     return true;
   }
 
   // PUT /api/content/:id — сохранить/обновить одно дело (частичный апдейт
   // всего стора, а не замена целиком — так конкурентные правки разных
-  // методистов разных дел не затирают друг друга).
+  // методистов разных дел не затирают друг друга). Каждое сохранение —
+  // новая версия в истории; статус сбрасывается на 'draft' (правка после
+  // approve требует повторной рецензии).
   if (pathname.startsWith('/api/content/') && req.method === 'PUT') {
     const id = decodeURIComponent(pathname.slice('/api/content/'.length));
     let payload;
@@ -249,9 +297,12 @@ async function handleApi(req, res, pathname) {
     const errors = validateCase(payload, existingIds);
     if (errors.length) { sendJson(res, 422, { errors }); return true; }
 
+    const author = authorFromRequest(req);
     store.cases[id] = payload;
+    const version = pushHistory(store, id, payload, author);
+    store.meta[id] = { status: 'draft', author, savedAt: Date.now(), reviewer: null, reviewComment: null, reviewedAt: null };
     await writeContentStore(store);
-    sendJson(res, 200, { ok: true, id });
+    sendJson(res, 200, { ok: true, id, version });
     return true;
   }
 
@@ -259,8 +310,78 @@ async function handleApi(req, res, pathname) {
     const id = decodeURIComponent(pathname.slice('/api/content/'.length));
     const store = await readContentStore();
     delete store.cases[id];
+    delete store.meta[id];
+    delete store.history[id];
     await writeContentStore(store);
     sendJson(res, 200, { ok: true });
+    return true;
+  }
+
+  // POST /api/content/:id/submit — отправить черновик на рецензию.
+  if (pathname.endsWith('/submit') && pathname.startsWith('/api/content/') && req.method === 'POST') {
+    const id = decodeURIComponent(pathname.slice('/api/content/'.length, -'/submit'.length));
+    const store = await readContentStore();
+    if (!store.cases[id]) { sendJson(res, 404, { error: `дело «${id}» не найдено среди правок Studio` }); return true; }
+    const meta = store.meta[id] || { status: 'draft' };
+    if (meta.status === 'in_review') { sendJson(res, 409, { error: 'дело уже отправлено на проверку' }); return true; }
+    if (meta.status === 'approved') { sendJson(res, 409, { error: 'дело уже одобрено' }); return true; }
+    store.meta[id] = { ...meta, status: 'in_review', submittedAt: Date.now(), submittedBy: authorFromRequest(req) };
+    await writeContentStore(store);
+    sendJson(res, 200, { ok: true, status: 'in_review' });
+    return true;
+  }
+
+  // POST /api/content/:id/review — вынести решение рецензента: {decision: 'approved'|'changes_requested', comment}.
+  if (pathname.endsWith('/review') && pathname.startsWith('/api/content/') && req.method === 'POST') {
+    const id = decodeURIComponent(pathname.slice('/api/content/'.length, -'/review'.length));
+    let payload;
+    try { payload = (await readJsonBody(req)) || {}; } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
+    const store = await readContentStore();
+    const meta = store.meta[id];
+    if (!meta || meta.status !== 'in_review') { sendJson(res, 400, { error: 'дело не находится на проверке' }); return true; }
+    if (payload.decision !== 'approved' && payload.decision !== 'changes_requested') {
+      sendJson(res, 400, { error: 'decision должен быть approved или changes_requested' }); return true;
+    }
+    store.meta[id] = {
+      ...meta,
+      status: payload.decision,
+      reviewer: authorFromRequest(req),
+      reviewComment: (payload.comment || '').slice(0, 2000),
+      reviewedAt: Date.now(),
+    };
+    await writeContentStore(store);
+    sendJson(res, 200, { ok: true, status: payload.decision });
+    return true;
+  }
+
+  // GET /api/content/:id/history — список версий (со снапшотами) для панели истории в Studio.
+  if (pathname.endsWith('/history') && pathname.startsWith('/api/content/') && req.method === 'GET') {
+    const id = decodeURIComponent(pathname.slice('/api/content/'.length, -'/history'.length));
+    const store = await readContentStore();
+    sendJson(res, 200, { history: store.history[id] || [], meta: store.meta[id] || null });
+    return true;
+  }
+
+  // POST /api/content/:id/restore — вернуть дело к более ранней версии из истории: {version}.
+  if (pathname.endsWith('/restore') && pathname.startsWith('/api/content/') && req.method === 'POST') {
+    const id = decodeURIComponent(pathname.slice('/api/content/'.length, -'/restore'.length));
+    let payload;
+    try { payload = (await readJsonBody(req)) || {}; } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
+    const store = await readContentStore();
+    const entry = (store.history[id] || []).find(h => h.version === payload.version);
+    if (!entry) { sendJson(res, 404, { error: `версия ${payload.version} не найдена` }); return true; }
+
+    const seedIds = await readSeedCaseIds();
+    const existingIds = [...new Set([...seedIds, ...Object.keys(store.cases)])].filter(x => x !== id);
+    const errors = validateCase(entry.snapshot, existingIds);
+    if (errors.length) { sendJson(res, 422, { errors }); return true; }
+
+    const author = authorFromRequest(req);
+    store.cases[id] = entry.snapshot;
+    const version = pushHistory(store, id, entry.snapshot, author);
+    store.meta[id] = { status: 'draft', author, savedAt: Date.now(), reviewer: null, reviewComment: null, reviewedAt: null, restoredFrom: entry.version };
+    await writeContentStore(store);
+    sendJson(res, 200, { ok: true, id, version });
     return true;
   }
 
@@ -315,9 +436,9 @@ async function serveStatic(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    const { pathname, searchParams } = new URL(req.url, `http://${req.headers.host}`);
     if (pathname.startsWith('/api/')) {
-      const handled = await handleApi(req, res, pathname);
+      const handled = await handleApi(req, res, pathname, searchParams);
       if (!handled) sendJson(res, 404, { error: 'not found' });
       return;
     }

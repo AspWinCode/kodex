@@ -44,6 +44,24 @@ const JSON_FIELDS = [
   ['finale', 'Финальная сцена (обязательно)', '[{ "curator": "viktor", "text": "" }]'],
 ];
 
+/* ---------- статусы рецензии (Studio Architecture, docs/09) ---------- */
+const STATUS_LABEL = {
+  draft: 'Черновик',
+  in_review: 'На проверке',
+  approved: 'Одобрено',
+  changes_requested: 'Есть замечания',
+};
+
+/* ---------- панель имени (идентификация «на доверии», не аутентификация) ---------- */
+function renderAuthorBar() {
+  const bar = document.createElement('div');
+  bar.className = 'st-author-bar';
+  bar.innerHTML = `<span>Вы:</span><input type="text" id="studio-author-input" placeholder="ваше имя" value="${esc(localStorage.getItem('studio-author') || '')}">`;
+  document.body.appendChild(bar);
+  bar.querySelector('input').oninput = (e) => localStorage.setItem('studio-author', e.target.value.trim());
+}
+renderAuthorBar();
+
 /* ---------- маршрутизация ---------- */
 let pendingDraft = null; // черновик от AI Gateway, ждущий редактирования (ещё не сохранён)
 
@@ -70,15 +88,15 @@ const AI_TOPICS = [
 async function renderList() {
   APP.innerHTML = `<div class="st-header"><h1>CODEX STUDIO</h1></div><p class="st-sub">Загрузка…</p>`;
 
-  const [cases] = await Promise.all([mergedCasesView(CASES)]);
+  const [cases, meta] = await Promise.all([mergedCasesView(CASES), loadStudioMeta()]);
   const seedIds = CASES.map(c => c.id);
-  const overriddenIds = new Set(await Promise.all(cases.map(async c => await isStudioOverridden(c.id) ? c.id : null)));
+  const overriddenIds = new Set(Object.keys(meta));
 
   APP.innerHTML = `
     <div class="st-header">
       <div>
         <h1>CODEX STUDIO</h1>
-        <div class="st-sub">Редактор дел · ${cases.length} всего · правки хранятся на сервере (services/content-api), общие для всех</div>
+        <div class="st-sub">Редактор дел · ${cases.length} всего · правки хранятся на сервере (services/content-api), общие для всех · в игру попадает только «Одобрено»</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <select id="ai-topic" title="Тема черновика">${AI_TOPICS.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>
@@ -101,7 +119,10 @@ async function renderList() {
             <td>${cur ? esc(cur.name) : esc(c.curator || '—')}</td>
             <td>${'I'.repeat(c.rank || 1)}</td>
             <td>${c.playable ? '✓' : '—'}</td>
-            <td>${isNew ? '<span class="st-badge st-badge-new">новое</span>' : overridden ? '<span class="st-badge st-badge-edited">изменено</span>' : '<span class="st-badge st-badge-off">сид</span>'}</td>
+            <td>
+              ${isNew ? '<span class="st-badge st-badge-new">новое</span>' : overridden ? '<span class="st-badge st-badge-edited">изменено</span>' : '<span class="st-badge st-badge-off">сид</span>'}
+              ${overridden && meta[c.id] ? `<span class="st-badge st-badge-${meta[c.id].status}">${STATUS_LABEL[meta[c.id].status] || meta[c.id].status}</span>` : ''}
+            </td>
             <td style="text-align:right;white-space:nowrap">
               <button class="st-btn st-btn-s" data-edit="${esc(c.id)}">Редактировать</button>
               ${overridden ? `<button class="st-btn st-btn-s st-btn-danger" data-reset="${esc(c.id)}">Сбросить</button>` : ''}
@@ -191,7 +212,10 @@ async function renderEditor(id, preset) {
         <a class="st-btn" href="#/" style="text-decoration:none;display:inline-flex;align-items:center">Отмена</a>
       </div>
     </form>
+    <div id="review-section"></div>
   `;
+
+  if (!isNew) renderReviewPanel(id);
 
   APP.querySelector('#case-form').onsubmit = async (e) => {
     e.preventDefault();
@@ -223,13 +247,93 @@ async function renderEditor(id, preset) {
 
     try {
       await upsertStudioCase(draft);
-      toast('success', `Дело «${draft.id}» сохранено`);
-      location.hash = '#/';
+      toast('success', `Дело «${draft.id}» сохранено как черновик — отправьте на проверку ниже`);
+      if (isNew) location.hash = '#/edit/' + draft.id;
+      else renderEditor(id);
     } catch (err) {
       showFormErrors(err.errors || [err.message]);
       submitBtn.disabled = false;
     }
   };
+}
+
+/* ---------- панель статуса, рецензии и истории версий ---------- */
+async function renderReviewPanel(id) {
+  const section = document.getElementById('review-section');
+  if (!section) return;
+  section.innerHTML = '<p class="st-sub">Загрузка истории…</p>';
+
+  const { history, meta } = await fetchCaseHistory(id);
+  const status = meta ? meta.status : null;
+
+  const statusBlock = !status ? '' : `
+    <div class="st-history">
+      <h3>Рецензия <span class="st-badge st-badge-${status}">${STATUS_LABEL[status] || status}</span></h3>
+      <p class="st-sub" style="margin:0 0 10px">
+        ${meta.author ? `Последнее сохранение: ${esc(meta.author)}` : ''}
+        ${status === 'in_review' && meta.submittedBy ? ` · отправлено на проверку: ${esc(meta.submittedBy)}` : ''}
+        ${(status === 'approved' || status === 'changes_requested') && meta.reviewer ? ` · рецензент: ${esc(meta.reviewer)}` : ''}
+      </p>
+      ${meta.reviewComment ? `<p class="st-sub" style="margin:0 0 10px">Комментарий рецензента: «${esc(meta.reviewComment)}»</p>` : ''}
+      <div style="display:flex;gap:10px">
+        ${status === 'draft' || status === 'changes_requested' ? '<button class="st-btn st-btn-s" id="submit-review">Отправить на проверку</button>' : ''}
+        ${status === 'in_review' ? '<button class="st-btn st-btn-s st-btn-primary" id="approve-case">Одобрить</button><button class="st-btn st-btn-s st-btn-danger" id="request-changes">Запросить правки</button>' : ''}
+      </div>
+      <div id="review-comment-box"></div>
+    </div>`;
+
+  const historyBlock = `
+    <div class="st-history">
+      <h3>История версий (${history.length})</h3>
+      ${history.length === 0 ? '<p class="st-sub">Пока не сохранялось.</p>' : history.slice().reverse().map(h => `
+        <div class="st-history-row">
+          <span class="st-mono">v${h.version}</span>
+          <span>${esc(h.author)}</span>
+          <span class="st-mono">${new Date(h.savedAt).toLocaleString('ru-RU')}</span>
+          <span style="flex:1"></span>
+          <button class="st-btn st-btn-s" data-restore="${h.version}">Восстановить</button>
+        </div>`).join('')}
+    </div>`;
+
+  section.innerHTML = statusBlock + historyBlock;
+
+  const submitBtn = section.querySelector('#submit-review');
+  if (submitBtn) submitBtn.onclick = async () => {
+    submitBtn.disabled = true;
+    try { await submitCaseForReview(id); toast('success', 'Отправлено на проверку'); renderReviewPanel(id); }
+    catch (err) { toast('error', err.message); submitBtn.disabled = false; }
+  };
+
+  const approveBtn = section.querySelector('#approve-case');
+  if (approveBtn) approveBtn.onclick = async () => {
+    approveBtn.disabled = true;
+    try { await reviewStudioCase(id, 'approved', ''); toast('success', 'Дело одобрено — теперь видно в Player'); renderReviewPanel(id); }
+    catch (err) { toast('error', err.message); approveBtn.disabled = false; }
+  };
+
+  const requestBtn = section.querySelector('#request-changes');
+  if (requestBtn) requestBtn.onclick = () => {
+    const box = section.querySelector('#review-comment-box');
+    box.innerHTML = `
+      <div class="st-review-panel">
+        <textarea id="review-comment" rows="3" placeholder="Что нужно доработать?"></textarea>
+        <div class="st-actions">
+          <button class="st-btn st-btn-s st-btn-danger" id="confirm-request-changes">Отправить замечания</button>
+        </div>
+      </div>`;
+    box.querySelector('#confirm-request-changes').onclick = async () => {
+      const comment = box.querySelector('#review-comment').value;
+      try { await reviewStudioCase(id, 'changes_requested', comment); toast('success', 'Замечания отправлены'); renderReviewPanel(id); }
+      catch (err) { toast('error', err.message); }
+    };
+  };
+
+  section.querySelectorAll('[data-restore]').forEach(b => b.onclick = async () => {
+    const version = Number(b.dataset.restore);
+    if (!confirm(`Восстановить версию v${version}? Текущее состояние станет новой версией в истории.`)) return;
+    try { await restoreCaseVersion(id, version); toast('success', `Восстановлена версия v${version}`); renderEditor(id); }
+    catch (err) { toast('error', err.message); }
+  });
 }
 
 function showFormErrors(errors) {

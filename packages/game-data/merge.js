@@ -14,22 +14,37 @@
 
 const CONTENT_API_BASE = '/api/content';
 
-async function loadStudioOverrides() {
+// Идентификация «на доверии» для Studio (см. server.mjs, комментарий у
+// pushHistory/authorFromRequest) — НЕ аутентификация: имя хранится в
+// localStorage этого браузера и подставляется заголовком на каждый запрос,
+// подделать его тривиально. Это подпись для истории версий и рецензии
+// внутри одной доверенной команды, а не защита доступа.
+function studioAuthorHeaders() {
+  const name = (typeof localStorage !== 'undefined' && localStorage.getItem('studio-author')) || 'Аноним';
+  // HTTP-заголовки ограничены ISO-8859-1 — кириллица (обычные имена в этой
+  // команде) ломает fetch() без кодирования. Сервер декодирует обратно.
+  return { 'X-Studio-Author': encodeURIComponent(name) };
+}
+
+async function loadStudioOverrides(opts = {}) {
   try {
-    const res = await fetch(CONTENT_API_BASE);
+    const res = await fetch(CONTENT_API_BASE + (opts.all ? '?all=1' : ''));
     if (!res.ok) throw new Error('content-api: ' + res.status);
     const data = await res.json();
-    return { cases: (data && data.cases) || {} };
+    return {
+      cases: (data && data.cases) || {},
+      meta: (data && data.meta) || {},
+    };
   } catch (e) {
     console.warn('[game-data] content-api недоступен, работаем с сидом без правок:', e.message);
-    return { cases: {} };
+    return { cases: {}, meta: {} };
   }
 }
 
 async function upsertStudioCase(caseObj) {
   const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(caseObj.id)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...studioAuthorHeaders() },
     body: JSON.stringify(caseObj),
   });
   if (!res.ok) {
@@ -43,6 +58,51 @@ async function upsertStudioCase(caseObj) {
 
 async function removeStudioOverride(id) {
   await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+/* ---------- версии и рецензия (Studio Architecture, docs/09) ---------- */
+
+async function loadStudioMeta() {
+  const { meta } = await loadStudioOverrides({ all: true });
+  return meta;
+}
+
+async function submitCaseForReview(id) {
+  const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}/submit`, {
+    method: 'POST',
+    headers: studioAuthorHeaders(),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
+}
+
+async function reviewStudioCase(id, decision, comment) {
+  const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...studioAuthorHeaders() },
+    body: JSON.stringify({ decision, comment }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
+}
+
+async function fetchCaseHistory(id) {
+  const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}/history`);
+  if (!res.ok) return { history: [], meta: null };
+  return res.json();
+}
+
+async function restoreCaseVersion(id, version) {
+  const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(id)}/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...studioAuthorHeaders() },
+    body: JSON.stringify({ version }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  return body;
 }
 
 /**
@@ -82,7 +142,7 @@ async function loadAnalytics() {
 }
 
 async function isStudioOverridden(id) {
-  const store = await loadStudioOverrides();
+  const store = await loadStudioOverrides({ all: true });
   return Object.prototype.hasOwnProperty.call(store.cases, id);
 }
 
@@ -109,7 +169,7 @@ async function applyStudioOverrides(casesArr) {
  * предложить «Сбросить к сиду»). Возвращает НОВЫЙ массив, seedCases не трогает.
  */
 async function mergedCasesView(seedCases) {
-  const store = await loadStudioOverrides();
+  const store = await loadStudioOverrides({ all: true });
   const seedIds = new Set(seedCases.map(c => c.id));
   const merged = seedCases.map(c => store.cases[c.id] ? Object.assign({}, c, store.cases[c.id]) : c);
   Object.keys(store.cases).forEach(id => {
