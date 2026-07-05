@@ -70,6 +70,7 @@ try {
 
   for (const c of playable) {
     const prefix = `  [${c.id}]`;
+    if (!/^[a-z0-9-]+$/.test(c.id || '')) { console.error(`${prefix} id содержит недопустимые символы (вставляется в HTML-атрибуты Player без экранирования)`); errors++; }
     if (!c.fnName) { console.error(`${prefix} нет fnName`); errors++; }
     if (!c.starter) { console.error(`${prefix} нет starter`); errors++; }
     if (!Array.isArray(c.evidence) || c.evidence.length === 0) {

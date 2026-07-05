@@ -1394,7 +1394,7 @@ function renderTerminal(root, tab) {
               ${current ? '<span class="badge badge-accent">вы здесь</span>' : ''}
             </div>
             <div class="body-s t2" style="margin-top:2px">${esc(r.note)}</div>
-            ${casesAtRank.length ? `<div class="body-s t3" style="margin-top:4px">Дела: ${casesAtRank.map(c => `${c.num} «${c.title}»`).join(' · ')}</div>` : ''}
+            ${casesAtRank.length ? `<div class="body-s t3" style="margin-top:4px">Дела: ${casesAtRank.map(c => `${esc(c.num)} «${esc(c.title)}»`).join(' · ')}</div>` : ''}
             ${current && nxt ? `<div style="margin-top:8px;max-width:280px"><div class="rep-bar"><div class="rep-fill" style="width:${Math.min(100, Math.round((S.agent.reputation - r.threshold) / (nxt.threshold - r.threshold) * 100))}%"></div></div>
               <div class="mono-s t3" style="margin-top:4px">${S.agent.reputation} / ${nxt.threshold}</div></div>` : ''}
           </div>
@@ -1580,7 +1580,7 @@ function renderArchive(root, id, tab) {
         <div class="curator-name"><b>${esc(CURATORS[l.curator].name)}</b></div>
         <div class="curator-bubble">${esc(l.text)}</div></div></div>`).join('')}
       <div class="card" style="max-width:560px"><div class="label t3" style="margin-bottom:6px">Подтверждённая версия</div>
-        ${esc(c.versions.find(v => v.correct).text)}</div></div>`;
+        ${esc((c.versions.find(v => v.correct) || {}).text || '—')}</div></div>`;
   } else {
     body = `<div class="stats-row" style="max-width:700px">
       <div class="card stat-big"><div class="val" style="color:var(--accent)">+${c.rewardCredits}</div><div class="cap">кредиты</div></div>

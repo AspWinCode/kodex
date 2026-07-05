@@ -140,9 +140,12 @@ function computeAnalytics(events) {
 
 /* ---------- валидация дела (см. пояснение вверху файла) ---------- */
 
+const SAFE_ID = /^[a-z0-9-]+$/;
+
 function validateCase(c, existingIds) {
   const errors = [];
   if (!c.id) errors.push('не указан id дела');
+  else if (!SAFE_ID.test(c.id)) errors.push('id дела может содержать только строчные латинские буквы, цифры и дефис (id вставляется в HTML-атрибуты Player без экранирования)');
   else if (existingIds.includes(c.id)) errors.push(`дело с id «${c.id}» уже существует`);
   if (!c.fnName) errors.push('не указано имя функции (fnName)');
   if (!c.starter) errors.push('не указан стартовый код (starter)');
