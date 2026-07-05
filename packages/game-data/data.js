@@ -1873,6 +1873,300 @@ const CASES = [
     ],
   },
 
+  {
+    id: 'case-032',
+    num: 'CASE-032',
+    title: 'Ряд наблюдений',
+    curator: 'anna',
+    rank: 3,
+    difficulty: 2,
+    rewardCredits: 75,
+    rewardRep: 95,
+    anno: 'Аналитический отдел переходит на pandas для базовых сводок. Первая задача — простая: среднее, максимум и минимум по одному ряду чисел, но через новый инструмент.',
+    playable: true,
+    briefing: [
+      { curator: 'anna', text: 'Агент, pandas.Series — это ряд значений, похожий на numpy-массив, но с дополнительными готовыми методами вроде .mean(), .max(), .min().' },
+      { curator: 'anna', text: 'Соберите seriesStats: она должна вернуть все три сводки сразу — среднее, максимум и минимум одного ряда наблюдений.' },
+    ],
+    goal: 'Собрать seriesStats(values), возвращающую {"mean", "max", "min"} через pandas.Series.',
+    suspects: 'Серия наблюдений за подозрительным объектом',
+    materials: [
+      {
+        id: 'm1', type: 'справка', title: 'pandas.Series', key: true, x: 26, y: 28,
+        meta: { source: 'Аналитический отдел', author: 'Анна Лог' },
+        body: [
+          'pd.Series(values) превращает список в ряд pandas с готовыми методами сводки.',
+          { code: `s = pd.Series([10, 20, 30])\ns.mean()  # 20.0\ns.max()   # 30\ns.min()   # 10` },
+          'float(...) вокруг каждого результата гарантирует обычное число Python на выходе, а не внутренний тип pandas.',
+        ],
+      },
+    ],
+    task: 'Напишите функцию seriesStats(values), которая возвращает {"mean": ..., "max": ..., "min": ...} — среднее, максимум и минимум values через pandas.Series.',
+    fnName: 'seriesStats',
+    starter: `import pandas as pd\n\ndef seriesStats(values):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Ряд №1', tests: [{ args: [[10, 20, 30]], expect: { mean: 20.0, max: 30.0, min: 10.0 } }] },
+      { id: 'e2', name: 'Ряд №2 — одно значение', tests: [{ args: [[5]], expect: { mean: 5.0, max: 5.0, min: 5.0 } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «pandas.Series»: s = pd.Series(values), затем s.mean(), s.max(), s.min().',
+      2: 's = pd.Series(values); return {"mean": float(s.mean()), "max": float(s.max()), "min": float(s.min())}.',
+      3: 'Подход целиком: seriesStats состоит из двух строк — создание Series и return записи с тремя float(...) сводками.',
+    },
+    versions: [
+      { text: 'Средний, максимальный и минимальный уровень наблюдения указывают на устойчивый, а не разовый паттерн.', correct: true },
+      { text: 'Ряд наблюдений слишком короткий для каких-либо выводов.', correct: false },
+      { text: 'Сводка по ряду показывает случайный шум без всякой системы.', correct: false },
+    ],
+    finale: [
+      { curator: 'anna', text: 'Три числа вместо целого ряда — то, что нужно для быстрой сводки. Аналитический отдел берёт pandas на вооружение.' },
+    ],
+  },
+
+  {
+    id: 'case-033',
+    num: 'CASE-033',
+    title: 'Отбор по условию',
+    curator: 'viktor',
+    rank: 3,
+    difficulty: 2,
+    rewardCredits: 75,
+    rewardRep: 95,
+    anno: 'В общей таблице фигурантов Директорату нужны не все, а только те, чей балл риска выше порога — без ручного просмотра всей таблицы.',
+    playable: true,
+    briefing: [
+      { curator: 'viktor', text: 'Агент, таблицу pandas можно отфильтровать условием прямо в квадратных скобках — как и numpy-массив, только со столбцами по имени.' },
+      { curator: 'viktor', text: 'Соберите highRiskNames: она должна вернуть имена только тех фигурантов, у кого score не ниже 70.' },
+    ],
+    goal: 'Собрать highRiskNames(records), возвращающую имена фигурантов с score ≥ 70.',
+    suspects: 'Курьер «Грач» — единственный с высоким баллом риска в выборке',
+    materials: [
+      {
+        id: 'm1', type: 'форензика', title: 'Фильтр таблицы по столбцу', key: true, x: 30, y: 30,
+        meta: { source: 'Директорат', author: 'Виктор Кодэкс' },
+        body: [
+          'df[df["score"] >= 70] оставляет только те строки таблицы, где условие истинно — как булева фильтрация в numpy, но по названию столбца.',
+          { code: `df = pd.DataFrame(records)\nfiltered = df[df["score"] >= 70]\nfiltered["name"].tolist()  # имена оставшихся строк` },
+        ],
+      },
+    ],
+    task: 'Напишите функцию highRiskNames(records), которая возвращает список имён (name) фигурантов из records, чей score не меньше 70.',
+    fnName: 'highRiskNames',
+    starter: `import pandas as pd\n\ndef highRiskNames(records):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Выборка №1', tests: [{ args: [[{ name: 'Грач', score: 85 }, { name: 'Тень', score: 50 }]], expect: ['Грач'] }] },
+      { id: 'e2', name: 'Выборка №2 — никого выше порога', tests: [{ args: [[{ name: 'Мышь', score: 10 }]], expect: [] }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «Фильтр таблицы по столбцу»: df[df["score"] >= 70] оставляет только нужные строки.',
+      2: 'df = pd.DataFrame(records); filtered = df[df["score"] >= 70]; return filtered["name"].tolist().',
+      3: 'Подход целиком: три строки — создание DataFrame, фильтрация по score и return списка имён отфильтрованных строк.',
+    },
+    versions: [
+      { text: 'Из всей выборки высокий риск подтверждён только у «Грача» — остальные фигуранты ниже порога тревоги.', correct: true },
+      { text: 'Все фигуранты выборки показывают одинаково высокий риск.', correct: false },
+      { text: 'Порог 70 выбран произвольно и не отражает реальную опасность.', correct: false },
+    ],
+    finale: [
+      { curator: 'viktor', text: 'Фильтр сразу выделил единственного реального кандидата в разработку — остальных можно временно снять с контроля.' },
+    ],
+  },
+
+  {
+    id: 'case-034',
+    num: 'CASE-034',
+    title: 'Сортировка по риску',
+    curator: 'viktor',
+    rank: 3,
+    difficulty: 2,
+    rewardCredits: 75,
+    rewardRep: 95,
+    anno: 'Список фигурантов приходит в случайном порядке. Директорату нужен список по убыванию риска — самый опасный наверху.',
+    playable: true,
+    briefing: [
+      { curator: 'viktor', text: 'Агент, таблицу pandas можно отсортировать по значению одного столбца одной командой — sort_values.' },
+      { curator: 'viktor', text: 'Соберите sortByRisk: она должна вернуть имена фигурантов, отсортированные по score от большего к меньшему.' },
+    ],
+    goal: 'Собрать sortByRisk(records), возвращающую имена, отсортированные по убыванию score.',
+    suspects: 'Курьер «Грач», связной «Тень», информатор «Мышь»',
+    materials: [
+      {
+        id: 'm1', type: 'форензика', title: 'sort_values — сортировка таблицы', key: true, x: 30, y: 30,
+        meta: { source: 'Директорат', author: 'Виктор Кодэкс' },
+        body: [
+          'df.sort_values("score", ascending=False) переставляет строки таблицы по убыванию значения столбца score.',
+          { code: `df = pd.DataFrame(records)\nsorted_df = df.sort_values("score", ascending=False)\nsorted_df["name"].tolist()` },
+          'ascending=False — по убыванию (от большего к меньшему). Без этого параметра сортировка была бы по возрастанию.',
+        ],
+      },
+    ],
+    task: 'Напишите функцию sortByRisk(records), которая возвращает имена (name) из records, отсортированные по убыванию score.',
+    fnName: 'sortByRisk',
+    starter: `import pandas as pd\n\ndef sortByRisk(records):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Список №1 — три фигуранта', tests: [{ args: [[{ name: 'Тень', score: 50 }, { name: 'Грач', score: 85 }, { name: 'Мышь', score: 10 }]], expect: ['Грач', 'Тень', 'Мышь'] }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «sort_values — сортировка таблицы»: параметр ascending=False сортирует по убыванию.',
+      2: 'df = pd.DataFrame(records); sorted_df = df.sort_values("score", ascending=False); return sorted_df["name"].tolist().',
+      3: 'Подход целиком: три строки — DataFrame, sort_values с ascending=False, return списка имён.',
+    },
+    versions: [
+      { text: 'После сортировки порядок разработки очевиден: «Грач» — приоритет номер один, «Мышь» — в последнюю очередь.', correct: true },
+      { text: 'Порядок разработки фигурантов не связан с баллом риска.', correct: false },
+      { text: 'Сортировка не меняет порядок — все фигуранты равнозначны.', correct: false },
+    ],
+    finale: [
+      { curator: 'viktor', text: 'Список наконец в правильном порядке — Директорат начинает разработку строго по приоритету, агент.' },
+    ],
+  },
+
+  {
+    id: 'case-035',
+    num: 'CASE-035',
+    title: 'Импорт ведомости',
+    curator: 'rita',
+    rank: 3,
+    difficulty: 3,
+    rewardCredits: 85,
+    rewardRep: 105,
+    anno: 'Финансовая ведомость поступила из внешней системы в формате CSV — текстовой таблицы с запятыми. Нужно прочитать её и просуммировать все переводы.',
+    playable: true,
+    briefing: [
+      { curator: 'rita', text: 'Агент, внешние системы обмениваются данными через CSV — простой текст, где строки таблицы разделены переносом строки, а столбцы — запятой.' },
+      { curator: 'rita', text: 'pandas умеет читать такой текст напрямую в таблицу через pd.read_csv — нужен только источник текста, обёрнутый через io.StringIO.' },
+      { curator: 'rita', text: 'Соберите totalFromCsv: она должна прочитать CSV-текст и просуммировать столбец amount.' },
+    ],
+    goal: 'Собрать totalFromCsv(csv_text), суммирующую столбец amount из CSV-текста.',
+    suspects: 'Внешняя система переводов конторы «Вектор-Плюс»',
+    materials: [
+      {
+        id: 'm1', type: 'справка', title: 'Чтение CSV из текста', key: true, x: 26, y: 28,
+        meta: { source: 'Инженерный отдел', author: 'Рита Деплой' },
+        body: [
+          'pd.read_csv обычно читает файл с диска, но ему можно подсунуть текст в памяти через io.StringIO — тогда файл на диске не нужен вовсе.',
+          { code: `import io\ncsv_text = "name,amount\\nА,100\\nБ,200\\n"\ndf = pd.read_csv(io.StringIO(csv_text))\ndf["amount"].sum()  # 300` },
+        ],
+      },
+    ],
+    task: 'Напишите функцию totalFromCsv(csv_text), которая читает csv_text как CSV-таблицу (через io.StringIO и pd.read_csv) и возвращает сумму столбца amount.',
+    fnName: 'totalFromCsv',
+    starter: `import pandas as pd\nimport io\n\ndef totalFromCsv(csv_text):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Ведомость №1', tests: [{ args: ['name,amount\nA,100\nB,200\n'], expect: 300.0 }] },
+      { id: 'e2', name: 'Ведомость №2 — одна строка', tests: [{ args: ['name,amount\nA,50\n'], expect: 50.0 }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «Чтение CSV из текста»: io.StringIO(csv_text) превращает текст в источник, который pd.read_csv читает как файл.',
+      2: 'df = pd.read_csv(io.StringIO(csv_text)); return float(df["amount"].sum()).',
+      3: 'Подход целиком: totalFromCsv состоит из двух строк — чтение через pd.read_csv(io.StringIO(csv_text)) и return float(df["amount"].sum()).',
+    },
+    versions: [
+      { text: 'Сумма переводов из внешней ведомости совпала с внутренним учётом день в день — расхождений не найдено.', correct: true },
+      { text: 'Ведомость в формате CSV повреждена и не может быть прочитана.', correct: false },
+      { text: 'Сумма переводов из внешней системы вдвое превышает внутренний учёт — есть расхождение.', correct: false },
+    ],
+    finale: [
+      { curator: 'rita', text: 'Импорт из внешней системы встал на поток — больше не нужно переносить ведомости вручную строка за строкой.' },
+    ],
+  },
+
+  {
+    id: 'case-036',
+    num: 'CASE-036',
+    title: 'Группировка по куратору',
+    curator: 'anna',
+    rank: 3,
+    difficulty: 3,
+    rewardCredits: 90,
+    rewardRep: 110,
+    anno: 'У каждого фигуранта есть куратор, ведущий его дело. Директорату нужна не таблица целиком, а сводка: сколько фигурантов ведёт каждый куратор.',
+    playable: true,
+    briefing: [
+      { curator: 'anna', text: 'Агент, groupby — это способ разбить таблицу на группы по значению одного столбца и посчитать что-то по каждой группе отдельно.' },
+      { curator: 'anna', text: 'Соберите countByCurator: она должна вернуть, сколько фигурантов ведёт каждый куратор — в виде записи «куратор → число».' },
+    ],
+    goal: 'Собрать countByCurator(records), возвращающую количество фигурантов на каждого куратора через groupby.',
+    suspects: 'Все фигуранты, распределённые между кураторами агентства',
+    materials: [
+      {
+        id: 'm1', type: 'форензика', title: 'groupby — счёт по группам', key: true, x: 30, y: 30,
+        meta: { source: 'Аналитический отдел', author: 'Анна Лог' },
+        body: [
+          'df.groupby("curator") разбивает таблицу на группы строк с одинаковым значением curator. .size() считает число строк в каждой группе.',
+          { code: `df = pd.DataFrame(records)\ngrouped = df.groupby("curator").size()\ngrouped.to_dict()  # {"viktor": 2, "anna": 1}` },
+        ],
+      },
+    ],
+    task: 'Напишите функцию countByCurator(records), которая возвращает словарь {куратор: количество фигурантов} через df.groupby("curator").size().to_dict().',
+    fnName: 'countByCurator',
+    starter: `import pandas as pd\n\ndef countByCurator(records):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Распределение №1', tests: [{ args: [[{ name: 'Грач', curator: 'viktor' }, { name: 'Тень', curator: 'viktor' }, { name: 'Мышь', curator: 'anna' }]], expect: { viktor: 2, anna: 1 } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «groupby — счёт по группам»: df.groupby("curator").size() уже считает нужное, осталось превратить в словарь через .to_dict().',
+      2: 'df = pd.DataFrame(records); return df.groupby("curator").size().to_dict().',
+      3: 'Подход целиком: countByCurator состоит из двух строк — создание DataFrame и return df.groupby("curator").size().to_dict().',
+    },
+    versions: [
+      { text: 'Нагрузка между кураторами распределена неравномерно — у Виктора вдвое больше дел, чем у остальных.', correct: true },
+      { text: 'Все кураторы ведут строго одинаковое число фигурантов.', correct: false },
+      { text: 'Распределение фигурантов между кураторами вообще не фиксируется в системе.', correct: false },
+    ],
+    finale: [
+      { curator: 'anna', text: 'Сводка по кураторам показала явный перекос нагрузки — Директорат уже пересматривает распределение дел.' },
+    ],
+  },
+
+  {
+    id: 'case-037',
+    num: 'CASE-037',
+    title: 'Сводная таблица риска',
+    curator: 'viktor',
+    rank: 3,
+    difficulty: 3,
+    rewardCredits: 95,
+    rewardRep: 120,
+    anno: 'Директорату нужен не просто список фигурантов по кураторам, а средний балл риска у каждого куратора — в виде готовой сводной таблицы.',
+    playable: true,
+    briefing: [
+      { curator: 'viktor', text: 'Агент, groupby даёт группы и один агрегат за раз. pivot_table — более гибкий инструмент: сразу задаёт, что считать (values), по чему группировать (index) и как агрегировать (aggfunc).' },
+      { curator: 'viktor', text: 'Соберите riskByCurator: она должна вернуть средний балл риска (score) по каждому куратору через pivot_table.' },
+    ],
+    goal: 'Собрать riskByCurator(records), возвращающую средний score по каждому куратору через pivot_table.',
+    suspects: 'Все фигуранты агентства, сгруппированные по куратору',
+    materials: [
+      {
+        id: 'm1', type: 'форензика', title: 'pivot_table — гибкая сводная таблица', key: true, x: 30, y: 30,
+        meta: { source: 'Директорат', author: 'Виктор Кодэкс' },
+        body: [
+          'df.pivot_table(values="score", index="curator", aggfunc="mean") группирует по curator и считает среднее score для каждой группы — то же самое, что groupby("curator")["score"].mean(), но с явно названными частями: что считаем, по чему группируем, как агрегируем.',
+          { code: `df = pd.DataFrame(records)\ntable = df.pivot_table(values="score", index="curator", aggfunc="mean")\ntable["score"].to_dict()  # {"viktor": 70.0, "anna": 50.0}` },
+        ],
+      },
+    ],
+    task: 'Напишите функцию riskByCurator(records), которая возвращает словарь {куратор: средний score} через df.pivot_table(values="score", index="curator", aggfunc="mean").',
+    fnName: 'riskByCurator',
+    starter: `import pandas as pd\n\ndef riskByCurator(records):\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Сводка №1', tests: [{ args: [[{ curator: 'viktor', score: 80 }, { curator: 'viktor', score: 60 }, { curator: 'anna', score: 50 }]], expect: { viktor: 70.0, anna: 50.0 } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «pivot_table — гибкая сводная таблица»: values="score", index="curator", aggfunc="mean".',
+      2: 'df = pd.DataFrame(records); table = df.pivot_table(values="score", index="curator", aggfunc="mean"); return table["score"].to_dict().',
+      3: 'Подход целиком: три строки — DataFrame, pivot_table с указанными values/index/aggfunc, и return словаря через table["score"].to_dict().',
+    },
+    versions: [
+      { text: 'Средний риск у куратора Виктора заметно выше — его фигуранты требуют более пристального контроля.', correct: true },
+      { text: 'Средний балл риска одинаков у всех кураторов агентства.', correct: false },
+      { text: 'Средний риск не связан с куратором — данные нужно смотреть по-другому.', correct: false },
+    ],
+    finale: [
+      { curator: 'viktor', text: 'Сводная таблица подтвердила: работа кураторов неравнозначна не только по числу дел, но и по их сложности. Это меняет распределение ресурсов агентства.' },
+    ],
+  },
+
   /* — засекреченные дела-витрина — */
   {
     id: 'case-014', num: 'CASE-014', title: 'Двойник', curator: 'viktor', rank: 2, difficulty: 3,
