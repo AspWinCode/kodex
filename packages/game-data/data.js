@@ -2167,6 +2167,166 @@ const CASES = [
     ],
   },
 
+  {
+    id: 'case-038',
+    num: 'CASE-038',
+    title: 'Диаграмма по кураторам',
+    curator: 'viktor',
+    rank: 3,
+    difficulty: 2,
+    rewardCredits: 80,
+    rewardRep: 100,
+    anno: 'Числа в отчёте — это одно, а наглядная картина для совещания Директората — совсем другое. Нужна столбчатая диаграмма нагрузки по кураторам.',
+    playable: true,
+    visual: 'chart',
+    briefing: [
+      { curator: 'viktor', text: 'Агент, отчёты с числами хороши для работы, но на совещании Директорату нужна картинка — столбчатая диаграмма, у которой сразу видно, кто перегружен.' },
+      { curator: 'viktor', text: 'В Kodex диаграмму строит объект-график: new_chart() создаёт его, c.bar(подписи, значения) рисует столбцы, c.title(текст) подписывает диаграмму.' },
+      { curator: 'viktor', text: 'Соберите buildBarChart: она должна построить столбчатую диаграмму по подписям labels и значениям values, с заголовком title.' },
+    ],
+    goal: 'Собрать buildBarChart(labels, values, title), строящую столбчатую диаграмму.',
+    suspects: 'Нагрузка кураторов агентства по числу дел',
+    materials: [
+      {
+        id: 'm1', type: 'справка', title: 'Графика Kodex: столбчатая диаграмма', key: true, x: 24, y: 26,
+        meta: { source: 'Директорат', author: 'Виктор Кодэкс' },
+        body: [
+          'new_chart() создаёт объект графика. c.bar(labels, values) рисует один столбец на каждую пару подпись/значение. c.title(text) добавляет заголовок.',
+          { code: `c = new_chart()\nc.bar(["А", "Б"], [10, 20])\nc.title("Отчёт")\nc.spec  # {"kind": "bar", "title": "Отчёт", ..., "data": {"labels": [...], "values": [...]}}` },
+          'В настоящем Python графика такого рода строится библиотекой matplotlib (plt.bar(...)) и рисуется в отдельном окне или сохраняется в файл. В Kodex тот же принцип вызовов, только результат — спецификация графика, которую верстак рисует сам сразу после проверки.',
+        ],
+      },
+      {
+        id: 'm2', type: 'форензика', title: 'Функция-обёртка над графиком', key: true, x: 55, y: 58,
+        meta: { source: 'Директорат', author: 'Виктор Кодэкс' },
+        body: [
+          { code: `def buildBarChart(labels, values, title):\n    c = new_chart()\n    c.bar(labels, values)\n    c.title(title)\n    return c.spec` },
+          'В конце обязательно верните c.spec — именно эту запись сравнивает авточекер и рисует верстак.',
+        ],
+      },
+    ],
+    task: 'Напишите функцию buildBarChart(labels, values, title), которая создаёт new_chart(), вызывает c.bar(labels, values) и c.title(title), и возвращает c.spec.',
+    fnName: 'buildBarChart',
+    starter: `# Столбчатая диаграмма нагрузки по кураторам\ndef buildBarChart(labels, values, title):\n    c = new_chart()\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Диаграмма №1 — три куратора', tests: [{ args: [['Виктор', 'Анна', 'Рита'], [12, 8, 10], 'Нагрузка кураторов'], expect: { kind: 'bar', title: 'Нагрузка кураторов', xlabel: '', ylabel: '', data: { labels: ['Виктор', 'Анна', 'Рита'], values: [12.0, 8.0, 10.0] } } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материалы «Графика Kodex» и «Функция-обёртка над графиком»: c.bar(labels, values), затем c.title(title), затем return c.spec.',
+      2: 'Внутри функции: c.bar(labels, values); c.title(title); return c.spec — заготовка уже создаёт c = new_chart().',
+      3: 'Подход целиком: c.bar(labels, values); c.title(title); return c.spec — три строки внутри уже готовой заготовки.',
+    },
+    versions: [
+      { text: 'Диаграмма наглядно показала: Виктор ведёт заметно больше дел, чем остальные кураторы — нагрузку нужно перераспределить.', correct: true },
+      { text: 'Нагрузка кураторов распределена идеально равномерно.', correct: false },
+      { text: 'Диаграмма не отражает реальное число дел — данные искажены.', correct: false },
+    ],
+    finale: [
+      { curator: 'viktor', text: 'Диаграмма легла прямо в презентацию для совещания — числа никого не убеждали так быстро, как эта картинка.' },
+    ],
+  },
+
+  {
+    id: 'case-039',
+    num: 'CASE-039',
+    title: 'Линия времени наблюдения',
+    curator: 'anna',
+    rank: 3,
+    difficulty: 2,
+    rewardCredits: 80,
+    rewardRep: 100,
+    anno: 'Активность подозрительного счёта менялась изо дня в день. Чтобы увидеть тренд, а не отдельные цифры, нужен линейный график по дням.',
+    playable: true,
+    visual: 'chart',
+    briefing: [
+      { curator: 'anna', text: 'Агент, отдельные числа по дням мало что говорят — а вот линия, соединяющая их, сразу показывает тренд: растёт активность или падает.' },
+      { curator: 'anna', text: 'c.line(x, y) рисует линию через точки, где x — дни (или любые последовательные метки), а y — значения активности.' },
+      { curator: 'anna', text: 'Соберите buildLineChart: она должна построить линейный график по x и y, с заголовком title.' },
+    ],
+    goal: 'Собрать buildLineChart(x, y, title), строящую линейный график.',
+    suspects: 'Подозрительный счёт с растущей активностью',
+    materials: [
+      {
+        id: 'm1', type: 'справка', title: 'Графика Kodex: линейный график', key: true, x: 24, y: 26,
+        meta: { source: 'Аналитический отдел', author: 'Анна Лог' },
+        body: [
+          'c.line(x, y) соединяет точки (x[0], y[0]), (x[1], y[1]) и так далее одной линией — удобно для показа изменения во времени.',
+          { code: `def buildLineChart(x, y, title):\n    c = new_chart()\n    c.line(x, y)\n    c.title(title)\n    return c.spec` },
+        ],
+      },
+    ],
+    task: 'Напишите функцию buildLineChart(x, y, title), которая создаёт new_chart(), вызывает c.line(x, y) и c.title(title), и возвращает c.spec.',
+    fnName: 'buildLineChart',
+    starter: `# Линия времени активности счёта\ndef buildLineChart(x, y, title):\n    c = new_chart()\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'График №1 — пять дней', tests: [{ args: [[1, 2, 3, 4, 5], [3, 5, 4, 8, 12], 'Активность счёта'], expect: { kind: 'line', title: 'Активность счёта', xlabel: '', ylabel: '', data: { x: [1.0, 2.0, 3.0, 4.0, 5.0], y: [3.0, 5.0, 4.0, 8.0, 12.0] } } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «Графика Kodex: линейный график»: c.line(x, y), затем c.title(title), затем return c.spec.',
+      2: 'Внутри функции: c.line(x, y); c.title(title); return c.spec.',
+      3: 'Подход целиком: c.line(x, y); c.title(title); return c.spec — три строки внутри уже готовой заготовки.',
+    },
+    versions: [
+      { text: 'График показал устойчивый рост активности к концу недели — счёт готовился к крупной операции.', correct: true },
+      { text: 'Активность счёта не менялась всю неделю — тревога ложная.', correct: false },
+      { text: 'Активность счёта падает, а не растёт — угроза снижается.', correct: false },
+    ],
+    finale: [
+      { curator: 'anna', text: 'Линия тренда не оставила сомнений: активность росла день за днём. Счёт взят под усиленное наблюдение.' },
+    ],
+  },
+
+  {
+    id: 'case-040',
+    num: 'CASE-040',
+    title: 'Гистограмма распределения',
+    curator: 'rita',
+    rank: 3,
+    difficulty: 3,
+    rewardCredits: 90,
+    rewardRep: 110,
+    anno: 'У сотни показаний датчика есть значения, но нет наглядной картины: сколько показаний попадает в какой диапазон? Для этого нужна не линия и не столбцы по категориям, а гистограмма.',
+    playable: true,
+    visual: 'chart',
+    briefing: [
+      { curator: 'rita', text: 'Агент, гистограмма непохожа на обычную столбчатую диаграмму: она не сравнивает категории, а показывает, сколько значений попадает в каждый числовой диапазон (бин).' },
+      { curator: 'rita', text: 'c.hist(values, bins) сама разбивает диапазон от минимума до максимума на bins равных частей и считает, сколько чисел попало в каждую.' },
+      { curator: 'rita', text: 'Соберите buildHistogram: она должна построить гистограмму показаний values с числом интервалов bins.' },
+    ],
+    goal: 'Собрать buildHistogram(values, bins), строящую гистограмму распределения показаний.',
+    suspects: 'Датчик с неравномерным распределением показаний',
+    materials: [
+      {
+        id: 'm1', type: 'справка', title: 'Графика Kodex: гистограмма', key: true, x: 24, y: 26,
+        meta: { source: 'Инженерный отдел', author: 'Рита Деплой' },
+        body: [
+          'c.hist(values, bins) делит весь диапазон значений на bins равных интервалов и подсчитывает, сколько чисел попало в каждый — результат содержит границы интервалов (edges) и счётчики (counts).',
+          { code: `def buildHistogram(values, bins):\n    c = new_chart()\n    c.hist(values, bins)\n    return c.spec` },
+          'Чем больше показаний скапливается в одном интервале, тем выше столбец гистограммы на этом участке.',
+        ],
+      },
+    ],
+    task: 'Напишите функцию buildHistogram(values, bins), которая создаёт new_chart(), вызывает c.hist(values, bins) и возвращает c.spec.',
+    fnName: 'buildHistogram',
+    starter: `# Гистограмма распределения показаний датчика\ndef buildHistogram(values, bins):\n    c = new_chart()\n    pass\n`,
+    evidence: [
+      { id: 'e1', name: 'Серия №1 — четыре интервала', tests: [{ args: [[1, 2, 2, 3, 3, 3, 4, 5], 4], expect: { kind: 'hist', title: '', xlabel: '', ylabel: '', data: { edges: [1.0, 2.0, 3.0, 4.0, 5.0], counts: [1, 2, 3, 2] } } }] },
+    ],
+    hints: {
+      1: 'Посмотрите материал «Графика Kodex: гистограмма»: c.hist(values, bins), затем return c.spec.',
+      2: 'Внутри функции: c.hist(values, bins); return c.spec.',
+      3: 'Подход целиком: c.hist(values, bins); return c.spec — две строки внутри уже готовой заготовки.',
+    },
+    versions: [
+      { text: 'Гистограмма показала явный перекос: большинство показаний скапливается в середине диапазона — датчик работает нестабильно.', correct: true },
+      { text: 'Показания распределены идеально равномерно по всем интервалам.', correct: false },
+      { text: 'Гистограмма непригодна для анализа показаний этого датчика.', correct: false },
+    ],
+    finale: [
+      { curator: 'rita', text: 'Гистограмма выявила именно ту нестабильность, которую не было видно в сыром потоке чисел. Датчик отправлен на калибровку.' },
+    ],
+  },
+
   /* — засекреченные дела-витрина — */
   {
     id: 'case-014', num: 'CASE-014', title: 'Двойник', curator: 'viktor', rank: 2, difficulty: 3,

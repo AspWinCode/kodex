@@ -1226,6 +1226,8 @@ function renderCheck(root, c, autorun) {
         toast('success', 'Все улики подтверждены', 'Дело готово к закрытию, агент.');
         if (c.visual === 'turtle') {
           root.querySelector('#check-detail').innerHTML = `<div class="check-detail"><div class="mono-s t3" style="margin-bottom:8px">Рисунок по данным решения:</div>${renderTurtlePath(response.lastResult)}</div>`;
+        } else if (c.visual === 'chart') {
+          root.querySelector('#check-detail').innerHTML = `<div class="check-detail">${renderChartSpec(response.lastResult)}</div>`;
         }
         actions.innerHTML = `<button class="btn btn-primary btn-l btn-pulse" data-go="/case/${c.id}/report">Перейти к отчёту</button>`;
         bindCommon(actions);

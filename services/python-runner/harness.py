@@ -131,6 +131,73 @@ class MiniTurtle:
     seth = setheading
 
 
+class MiniChart:
+    """
+    Замена настоящего matplotlib (Module 9 учебного плана, «Визуализация»).
+    matplotlib по умолчанию рисует в окне или сохраняет PNG — ни то, ни
+    другое не сравнить с ожидаемым значением так же, как остальные улики,
+    и PNG-рендер в изолированном контейнере без дисплея — лишняя сложность
+    ради того же результата, что даёт запись данных графика напрямую.
+
+    MiniChart сохраняет привычные вызовы (bar/line/hist/title/...), но
+    вместо рисунка записывает «спецификацию» графика — тип, подписи и
+    данные — это и есть результат, который возвращает решение агента.
+    Player отдельно рисует эту спецификацию на SVG (как и путь MiniTurtle).
+    """
+
+    def __init__(self):
+        self.kind = None
+        self.title_text = ''
+        self.xlabel_text = ''
+        self.ylabel_text = ''
+        self.data = {}
+
+    def bar(self, labels, values):
+        self.kind = 'bar'
+        self.data = {'labels': list(labels), 'values': [float(v) for v in values]}
+
+    def line(self, x, y):
+        self.kind = 'line'
+        self.data = {'x': [float(v) for v in x], 'y': [float(v) for v in y]}
+
+    def hist(self, values, bins=10):
+        self.kind = 'hist'
+        values = list(values)
+        lo, hi = min(values), max(values)
+        if lo == hi:
+            edges = [lo, lo + 1]
+            counts = [len(values)]
+        else:
+            width = (hi - lo) / bins
+            edges = [lo + i * width for i in range(bins + 1)]
+            counts = [0] * bins
+            for v in values:
+                idx = int((v - lo) / width)
+                if idx >= bins:
+                    idx = bins - 1
+                counts[idx] += 1
+        self.data = {'edges': edges, 'counts': counts}
+
+    def title(self, text):
+        self.title_text = text
+
+    def xlabel(self, text):
+        self.xlabel_text = text
+
+    def ylabel(self, text):
+        self.ylabel_text = text
+
+    @property
+    def spec(self):
+        return {
+            'kind': self.kind,
+            'title': self.title_text,
+            'xlabel': self.xlabel_text,
+            'ylabel': self.ylabel_text,
+            'data': self.data,
+        }
+
+
 def normalize(value):
     """
     Приводит numpy/pandas объекты к обычным JSON-совместимым структурам,
@@ -211,7 +278,7 @@ def main():
         signal.signal(signal.SIGALRM, _on_alarm)
         signal.alarm(TIMEOUT_SECONDS)
 
-    namespace = {'new_turtle': lambda: MiniTurtle()}
+    namespace = {'new_turtle': lambda: MiniTurtle(), 'new_chart': lambda: MiniChart()}
     try:
         exec(code, namespace)
     except HarnessTimeout:

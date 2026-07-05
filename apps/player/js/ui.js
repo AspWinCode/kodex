@@ -140,6 +140,55 @@ function renderTurtlePath(path) {
   return `<svg class="turtle-canvas" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg">${lines}</svg>`;
 }
 
+/* ---------- визуализация MiniChart (Module 9, «Визуализация») ----------
+ * matplotlib рисует в окне или сохраняет PNG — ни то, ни другое нельзя
+ * сравнить с ожидаемым значением как обычную улику, и рендерить PNG в
+ * контейнере без дисплея ради того же результата — лишняя сложность.
+ * MiniChart (harness.py) записывает данные графика вместо рисунка; эта
+ * функция рисует их SVG на верстаке — тот же принцип, что и renderTurtlePath. */
+function renderChartSpec(spec) {
+  if (!spec || !spec.kind) return '<p class="t3">График пуст — решение не построило спецификацию.</p>';
+  const W = 320, H = 200, pad = 28;
+  const esc2 = s => esc(String(s));
+  let inner = '';
+  if (spec.kind === 'bar') {
+    const { labels, values } = spec.data;
+    const max = Math.max(...values, 1);
+    const bw = (W - pad * 2) / values.length;
+    inner = values.map((v, i) => {
+      const h = (v / max) * (H - pad * 2);
+      const x = pad + i * bw + bw * 0.15;
+      const y = H - pad - h;
+      return `<rect x="${x}" y="${y}" width="${bw * 0.7}" height="${h}" fill="var(--accent)"/>
+        <text x="${x + bw * 0.35}" y="${H - pad + 14}" font-size="9" fill="var(--text-3)" text-anchor="middle">${esc2(labels[i])}</text>`;
+    }).join('');
+  } else if (spec.kind === 'line') {
+    const { x, y } = spec.data;
+    const maxX = Math.max(...x), minX = Math.min(...x);
+    const maxY = Math.max(...y), minY = Math.min(...y) || 0;
+    const sx = v => pad + (maxX === minX ? 0 : (v - minX) / (maxX - minX)) * (W - pad * 2);
+    const sy = v => H - pad - (maxY === minY ? 0 : (v - minY) / (maxY - minY)) * (H - pad * 2);
+    const points = x.map((v, i) => `${sx(v)},${sy(y[i])}`).join(' ');
+    inner = `<polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="2"/>` +
+      x.map((v, i) => `<circle cx="${sx(v)}" cy="${sy(y[i])}" r="2.5" fill="var(--accent)"/>`).join('');
+  } else if (spec.kind === 'hist') {
+    const { edges, counts } = spec.data;
+    const max = Math.max(...counts, 1);
+    const bw = (W - pad * 2) / counts.length;
+    inner = counts.map((c, i) => {
+      const h = (c / max) * (H - pad * 2);
+      const x = pad + i * bw;
+      const y = H - pad - h;
+      return `<rect x="${x}" y="${y}" width="${bw - 2}" height="${h}" fill="var(--accent)"/>`;
+    }).join('');
+  }
+  const titleLine = spec.title ? `<div class="mono-s t3" style="margin-bottom:6px">${esc2(spec.title)}</div>` : '';
+  return `${titleLine}<svg class="chart-canvas" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    <line x1="${pad}" y1="${H - pad}" x2="${W - pad}" y2="${H - pad}" stroke="var(--border)"/>
+    ${inner}
+  </svg>`;
+}
+
 /* ---------- разное ---------- */
 function pictureScale(total, done, currentIdx) {
   let segs = '';

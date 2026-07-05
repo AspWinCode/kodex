@@ -600,7 +600,9 @@ a:hover { text-decoration: underline; }
 .check-detail .exp { color: var(--text-2); }
 .check-detail summary { cursor: pointer; color: var(--text-3); font-size: 11px; margin-top: 8px; }
 .check-detail:has(.turtle-canvas) { border-color: var(--success-border); }
+.check-detail:has(.chart-canvas) { border-color: var(--success-border); }
 .turtle-canvas { width: 100%; max-width: 360px; aspect-ratio: 1; display: block; margin: 0 auto; background: var(--bg-surface); border-radius: var(--r-s); }
+.chart-canvas { width: 100%; max-width: 420px; aspect-ratio: 320/200; display: block; margin: 0 auto; background: var(--bg-surface); border-radius: var(--r-s); }
 
 /* ============ отчёт ============ */
 .report-overlay { position: fixed; inset: 0; background: var(--bg-base); z-index: 800; overflow-y: auto; animation: fadein .3s ease-out both; }
