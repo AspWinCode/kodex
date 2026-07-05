@@ -41,14 +41,32 @@ async function loadStudioOverrides(opts = {}) {
   }
 }
 
-async function upsertStudioCase(caseObj) {
+/**
+ * baseVersion — номер версии, с которой методист открыл форму (Studio
+ * запоминает его при открытии редактора через fetchCaseHistory). Если к
+ * моменту сохранения кто-то другой уже сохранил более новую версию, сервер
+ * отклоняет запрос 409 вместо тихой перезаписи — совместное редактирование
+ * без real-time инфраструктуры (см. server.mjs, комментарий у PUT-обработчика).
+ * baseVersion может быть null/undefined для нового дела — конфликтовать не с чем.
+ */
+async function upsertStudioCase(caseObj, baseVersion) {
+  const headers = { 'Content-Type': 'application/json', ...studioAuthorHeaders() };
+  if (baseVersion !== null && baseVersion !== undefined) headers['X-Base-Version'] = String(baseVersion);
   const res = await fetch(`${CONTENT_API_BASE}/${encodeURIComponent(caseObj.id)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...studioAuthorHeaders() },
+    headers,
     body: JSON.stringify(caseObj),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 409 && body.conflict) {
+      const err = new Error(body.error || 'дело изменено кем-то другим');
+      err.conflict = true;
+      err.currentVersion = body.currentVersion;
+      err.currentAuthor = body.currentAuthor;
+      err.currentSavedAt = body.currentSavedAt;
+      throw err;
+    }
     const err = new Error('не удалось сохранить дело');
     err.errors = body.errors || [body.error || `HTTP ${res.status}`];
     throw err;

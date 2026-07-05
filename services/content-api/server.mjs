@@ -284,6 +284,15 @@ async function handleApi(req, res, pathname, query) {
   // методистов разных дел не затирают друг друга). Каждое сохранение —
   // новая версия в истории; статус сбрасывается на 'draft' (правка после
   // approve требует повторной рецензии).
+  //
+  // Совместное редактирование (Studio Architecture, docs/09): вместо
+  // real-time инфраструктуры (WebSocket/presence — не оправдано на этом
+  // масштабе, см. Engineering Handbook, раздел 1 — KISS) используется
+  // оптимистичная блокировка версией. Studio при открытии формы запоминает
+  // номер последней версии из истории и присылает его заголовком
+  // X-Base-Version. Если к моменту сохранения в истории уже появилась более
+  // новая версия (кто-то другой сохранил дело за это время) — запрос
+  // отклоняется 409, вместо тихой перезаписи чужой правки.
   if (pathname.startsWith('/api/content/') && req.method === 'PUT') {
     const id = decodeURIComponent(pathname.slice('/api/content/'.length));
     let payload;
@@ -292,6 +301,25 @@ async function handleApi(req, res, pathname, query) {
     payload.id = id;
 
     const store = await readContentStore();
+
+    const baseVersionRaw = req.headers['x-base-version'];
+    if (baseVersionRaw !== undefined && baseVersionRaw !== '') {
+      const baseVersion = Number(baseVersionRaw);
+      const history = store.history[id] || [];
+      const currentVersion = history.length ? history[history.length - 1].version : 0;
+      if (baseVersion !== currentVersion) {
+        const meta = store.meta[id] || null;
+        sendJson(res, 409, {
+          conflict: true,
+          currentVersion,
+          currentAuthor: meta && meta.author,
+          currentSavedAt: meta && meta.savedAt,
+          error: `Дело уже сохранено кем-то другим (версия v${currentVersion}) с момента открытия формы`,
+        });
+        return true;
+      }
+    }
+
     const seedIds = await readSeedCaseIds();
     const existingIds = [...new Set([...seedIds, ...Object.keys(store.cases)])].filter(x => x !== id);
     const errors = validateCase(payload, existingIds);

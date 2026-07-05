@@ -12,7 +12,7 @@
 | 06 | [Domain Model](06-domain-model.md) | ✅ архивирован |
 | 07 | [AI Generation Architecture](07-ai-generation-architecture.md) | ✅ архивирован |
 | 08 | [Content Production Pipeline](08-content-production-pipeline.md) | ✅ архивирован |
-| 09 | Studio Architecture | 🟡 частично реализовано: версии/история + рецензия (draft → in_review → approved/changes_requested) готовы; совместное редактирование нескольких методистов одного дела одновременно — остаётся будущей работой |
+| 09 | Studio Architecture | ✅ реализовано: версии/история + рецензия (draft → in_review → approved/changes_requested); совместное редактирование — оптимистичная блокировка версией (409 при конкурентной правке, без real-time инфраструктуры) |
 | 10 | [Technical Architecture](10-technical-architecture.md) | ✅ архивирован |
 | 11 | [Database Architecture](11-database-architecture.md) | ✅ архивирован — честно фиксирует отсутствие БД |
 | 12 | [API Architecture](12-api-architecture.md) | ✅ архивирован |

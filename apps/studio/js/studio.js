@@ -165,6 +165,14 @@ async function renderEditor(id, preset) {
   APP.innerHTML = `<div class="st-header"><h1>${isNew ? 'НОВОЕ ДЕЛО' : 'РЕДАКТИРОВАНИЕ'}</h1></div><p class="st-sub">Загрузка…</p>`;
 
   const seed = isNew ? null : (await mergedCasesView(CASES)).find(c => c.id === id);
+  // Совместное редактирование (docs/08, docs/09): запоминаем версию, с которой
+  // открыта форма — при сохранении сервер сверит её с текущей и откажет 409,
+  // если кто-то другой уже сохранил дело за это время (не тихая перезапись).
+  let baseVersion = null;
+  if (!isNew) {
+    const { history } = await fetchCaseHistory(id);
+    baseVersion = history.length ? history[history.length - 1].version : 0;
+  }
   const c = preset || seed || {
     id: '', num: '', title: '', curator: Object.keys(CURATORS)[0], rank: 1, difficulty: 1,
     rewardCredits: 40, rewardRep: 60, anno: '', goal: '', suspects: '', playable: true,
@@ -246,11 +254,35 @@ async function renderEditor(id, preset) {
     if (jsonErrors.length) { showFormErrors(jsonErrors); submitBtn.disabled = false; return; }
 
     try {
-      await upsertStudioCase(draft);
+      await upsertStudioCase(draft, baseVersion);
       toast('success', `Дело «${draft.id}» сохранено как черновик — отправьте на проверку ниже`);
       if (isNew) location.hash = '#/edit/' + draft.id;
       else renderEditor(id);
     } catch (err) {
+      if (err.conflict) {
+        document.getElementById('form-errors').innerHTML = `
+          <div class="st-errors">
+            <b>Дело изменено кем-то другим, пока вы редактировали.</b>
+            <p style="margin:6px 0 10px">Текущая версия — v${err.currentVersion}${err.currentAuthor ? ` (сохранил: ${esc(err.currentAuthor)})` : ''}. Ваши изменения не сохранены, чтобы не затереть чужую правку.</p>
+            <div class="st-actions">
+              <button class="st-btn" id="conflict-reload">Обновить форму (потерять свои правки)</button>
+              <button class="st-btn st-btn-danger" id="conflict-force">Всё равно сохранить поверх</button>
+            </div>
+          </div>`;
+        toast('error', 'Конфликт версий — дело изменено кем-то другим');
+        document.getElementById('conflict-reload').onclick = () => renderEditor(id);
+        document.getElementById('conflict-force').onclick = async () => {
+          try {
+            await upsertStudioCase(draft, err.currentVersion);
+            toast('success', `Дело «${draft.id}» сохранено поверх чужой правки`);
+            renderEditor(id);
+          } catch (err2) {
+            showFormErrors(err2.errors || [err2.message]);
+          }
+        };
+        submitBtn.disabled = false;
+        return;
+      }
       showFormErrors(err.errors || [err.message]);
       submitBtn.disabled = false;
     }
