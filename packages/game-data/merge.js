@@ -64,6 +64,23 @@ async function generateDraftCase(topic) {
   return res.json();
 }
 
+/**
+ * Агрегированные метрики по сыгранным делам (v0.5 Analytics) — читает
+ * журнал событий, накопленный content-api из POST /api/events (см.
+ * apps/player/js/engine.js: sendEventToAnalytics). Используется дашбордом
+ * Studio; Player эту функцию не вызывает.
+ */
+async function loadAnalytics() {
+  try {
+    const res = await fetch('/api/analytics');
+    if (!res.ok) throw new Error('content-api: ' + res.status);
+    return res.json();
+  } catch (e) {
+    console.warn('[game-data] не удалось загрузить аналитику:', e.message);
+    return { totalEvents: 0, totalCasesTaken: 0, totalCasesCompleted: 0, cases: [] };
+  }
+}
+
 async function isStudioOverridden(id) {
   const store = await loadStudioOverrides();
   return Object.prototype.hasOwnProperty.call(store.cases, id);

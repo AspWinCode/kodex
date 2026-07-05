@@ -19,7 +19,7 @@
  */
 
 import http from 'node:http';
-import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { readFile, writeFile, appendFile, mkdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,7 @@ import { generateDraftCase, currentProviderName } from './ai/gateway.mjs';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA_DIR = fileURLToPath(new URL('./data', import.meta.url));
 const CONTENT_FILE = path.join(DATA_DIR, 'studio-content.json');
+const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
 const SEED_FILE = path.join(ROOT, 'packages/game-data/data.js');
 const PORT = Number(process.env.PORT) || 4173;
 
@@ -78,6 +79,63 @@ async function readContentStore() {
 
 async function writeContentStore(store) {
   await writeFile(CONTENT_FILE, JSON.stringify(store, null, 2));
+}
+
+/* ---------- журнал игровых событий (Analytics, v0.5) ---------- *
+ * Append-only JSONL: одна строка — одно событие. Player шлёт сюда копию
+ * своего локального S.events (js/engine.js) как best-effort, не блокирующий
+ * игровой цикл вызов (Event Architecture, docs/13, раздел 15 — Analytics
+ * асинхронна и некритична: сбой записи никогда не должен ломать игру). */
+
+async function ensureEventsFile() {
+  if (!existsSync(EVENTS_FILE)) await writeFile(EVENTS_FILE, '');
+}
+
+async function appendEvent(evt) {
+  await appendFile(EVENTS_FILE, JSON.stringify(evt) + '\n');
+}
+
+async function readAllEvents() {
+  try {
+    const raw = await readFile(EVENTS_FILE, 'utf8');
+    return raw.split('\n').filter(Boolean).map(line => {
+      try { return JSON.parse(line); } catch (e) { return null; }
+    }).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+function computeAnalytics(events) {
+  const perCase = {};
+  const ensure = id => (perCase[id] ||= { caseId: id, taken: 0, completed: 0, checkPassed: 0, checkFailed: 0, hintsUsed: 0 });
+
+  for (const e of events) {
+    const caseId = e.payload && e.payload.caseId;
+    if (!caseId) continue;
+    if (e.type === 'case.taken') ensure(caseId).taken++;
+    else if (e.type === 'case.completed') ensure(caseId).completed++;
+    else if (e.type === 'task.check_passed') ensure(caseId).checkPassed++;
+    else if (e.type === 'task.check_failed') ensure(caseId).checkFailed++;
+    else if (e.type === 'hint.delivered') ensure(caseId).hintsUsed++;
+  }
+
+  const cases = Object.values(perCase).map(c => {
+    const attempts = c.checkPassed + c.checkFailed;
+    return {
+      ...c,
+      attempts,
+      successRate: attempts > 0 ? Math.round((c.checkPassed / attempts) * 100) : null,
+      completionRate: c.taken > 0 ? Math.round((c.completed / c.taken) * 100) : null,
+    };
+  }).sort((a, b) => b.taken - a.taken);
+
+  return {
+    totalEvents: events.length,
+    totalCasesTaken: cases.reduce((s, c) => s + c.taken, 0),
+    totalCasesCompleted: cases.reduce((s, c) => s + c.completed, 0),
+    cases,
+  };
 }
 
 /* ---------- валидация дела (см. пояснение вверху файла) ---------- */
@@ -177,6 +235,27 @@ async function handleApi(req, res, pathname) {
     return true;
   }
 
+  // POST /api/events — Player шлёт сюда копию своих игровых событий
+  // (js/engine.js: logGameEvent). Best-effort: не проверяем строго форму,
+  // не критично для игры, если запись не удалась.
+  if (pathname === '/api/events' && req.method === 'POST') {
+    try {
+      const payload = await readJsonBody(req);
+      if (payload && payload.type) await appendEvent({ ...payload, receivedAt: Date.now() });
+      sendJson(res, 200, { ok: true });
+    } catch (e) {
+      sendJson(res, 200, { ok: false }); // не критично — см. комментарий выше
+    }
+    return true;
+  }
+
+  // GET /api/analytics — агрегаты по журналу для дашборда Studio.
+  if (pathname === '/api/analytics' && req.method === 'GET') {
+    const events = await readAllEvents();
+    sendJson(res, 200, computeAnalytics(events));
+    return true;
+  }
+
   return false;
 }
 
@@ -220,6 +299,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 await ensureContentFile();
+await ensureEventsFile();
 server.listen(PORT, () => {
   console.log(`Codex content-api + static: http://localhost:${PORT} (данные: ${CONTENT_FILE})`);
 });

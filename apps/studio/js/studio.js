@@ -52,6 +52,7 @@ async function route() {
   if (raw === 'edit/draft' && pendingDraft) return renderEditor('new', pendingDraft);
   if (raw.startsWith('edit/')) return renderEditor(raw.slice(5));
   if (raw === 'export') return renderExport();
+  if (raw === 'analytics') return renderAnalytics();
   return renderList();
 }
 window.addEventListener('hashchange', route);
@@ -82,6 +83,7 @@ async function renderList() {
       <div style="display:flex;gap:10px;align-items:center">
         <select id="ai-topic" title="Тема черновика">${AI_TOPICS.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select>
         <button class="st-btn" id="ai-generate">✨ Сгенерировать черновик</button>
+        <a class="st-link" href="#/analytics">Аналитика →</a>
         <a class="st-link" href="#/export">Экспорт правок →</a>
         <button class="st-btn st-btn-primary" id="new-case">+ Создать дело</button>
       </div>
@@ -237,6 +239,40 @@ function showFormErrors(errors) {
       <ul>${errors.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
     </div>`;
   toast('error', `Не сохранено: ${errors.length} ошиб${errors.length === 1 ? 'ка' : 'ки/ок'}`);
+}
+
+/* ---------- аналитика (v0.5) ---------- */
+async function renderAnalytics() {
+  APP.innerHTML = `<div class="st-header"><h1>АНАЛИТИКА</h1></div><p class="st-sub">Загрузка…</p>`;
+
+  const [analytics, cases] = await Promise.all([loadAnalytics(), mergedCasesView(CASES)]);
+  const titleById = Object.fromEntries(cases.map(c => [c.id, c.title || c.id]));
+
+  APP.innerHTML = `
+    <div class="st-header">
+      <div>
+        <h1>АНАЛИТИКА</h1>
+        <div class="st-sub">${analytics.totalEvents} событий в журнале · ${analytics.totalCasesTaken} взятий дел · ${analytics.totalCasesCompleted} закрытий — данные из живых прохождений Player, а не выдумка</div>
+      </div>
+      <a class="st-link" href="#/">← К списку дел</a>
+    </div>
+    ${analytics.cases.length === 0
+      ? `<p class="st-sub">Пока ни один агент не сыграл ни одного дела — как только Player пришлёт события, они появятся здесь.</p>`
+      : `<table class="st-table">
+          <thead><tr><th>Дело</th><th>Взято</th><th>Закрыто</th><th>% закрытия</th><th>Попыток проверки</th><th>% успеха проверки</th><th>Подсказок</th></tr></thead>
+          <tbody>
+            ${analytics.cases.map(c => `<tr>
+              <td>${esc(titleById[c.caseId] || c.caseId)}</td>
+              <td>${c.taken}</td>
+              <td>${c.completed}</td>
+              <td>${c.completionRate === null ? '—' : c.completionRate + '%'}</td>
+              <td>${c.attempts}</td>
+              <td>${c.successRate === null ? '—' : c.successRate + '%'}</td>
+              <td>${c.hintsUsed}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`}
+  `;
 }
 
 /* ---------- экспорт правок (для ручного переноса в сид) ---------- */
