@@ -101,9 +101,15 @@ try {
       console.error(`${prefix} нет улик (evidence)`); errors++;
     } else {
       for (const ev of c.evidence) {
+        if (!ev.id || !/^[a-z0-9-]+$/.test(ev.id)) { console.error(`${prefix} id улики «${ev.id}» содержит недопустимые символы (вставляется в HTML-атрибут data-ev без экранирования)`); errors++; }
         if (!Array.isArray(ev.tests) || ev.tests.length === 0) {
           console.error(`${prefix} улика «${ev.id}» без тестов`); errors++;
         }
+      }
+    }
+    if (Array.isArray(c.materials)) {
+      for (const m of c.materials) {
+        if (!m.id || !/^[a-z0-9-]+$/.test(m.id)) { console.error(`${prefix} id материала «${m.id}» содержит недопустимые символы (вставляется в HTML-атрибут data-doc без экранирования)`); errors++; }
       }
     }
     if (!c.hints || Object.keys(c.hints).length === 0) {

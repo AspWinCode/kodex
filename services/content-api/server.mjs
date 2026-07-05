@@ -11,11 +11,11 @@
  *     только в одном браузере) к настоящему Publishing: правки общие для всех,
  *     переживают перезагрузку страницы и передеплой (файл вне git, см. .gitignore).
  *
- * Инвариант дела (validateCase) продублирован из apps/studio/js/studio.js и
- * scripts/check.mjs сознательно, а не вынесен в общий модуль: три места держать
- * в синхроне ощутимо дешевле, чем городить кросс-рантайм (браузер + два вида
- * Node-процессов) загрузку общего файла ради одной небольшой функции (см.
- * Engineering Handbook, раздел 1 — KISS).
+ * Инвариант дела (validateCase) продублирован в scripts/check.mjs сознательно,
+ * а не вынесен в общий модуль: два места держать в синхроне ощутимо дешевле,
+ * чем городить кросс-рантайм (браузер Studio полагается на этот сервер как на
+ * единственный источник валидации — не дублирует её у себя) загрузку общего
+ * файла ради одной небольшой функции (см. Engineering Handbook, раздел 1 — KISS).
  */
 
 import http from 'node:http';
@@ -154,7 +154,15 @@ function validateCase(c, existingIds) {
     errors.push('нет улик (evidence) — минимум одна');
   } else {
     c.evidence.forEach(ev => {
+      if (!ev.id) errors.push('улика без id');
+      else if (!SAFE_ID.test(ev.id)) errors.push(`id улики «${ev.id}» может содержать только строчные латинские буквы, цифры и дефис (вставляется в HTML-атрибут data-ev без экранирования)`);
       if (!Array.isArray(ev.tests) || ev.tests.length === 0) errors.push(`улика «${ev.id || '?'}» без тестов`);
+    });
+  }
+  if (Array.isArray(c.materials)) {
+    c.materials.forEach(m => {
+      if (!m.id) errors.push('материал без id');
+      else if (!SAFE_ID.test(m.id)) errors.push(`id материала «${m.id}» может содержать только строчные латинские буквы, цифры и дефис (вставляется в HTML-атрибут data-doc без экранирования)`);
     });
   }
   if (!c.hints || Object.keys(c.hints).length === 0) errors.push('нет подсказок (hints)');
