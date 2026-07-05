@@ -13,3 +13,4 @@ coverage/
 # рабочие данные content-api — общий стор правок Studio, живёт на сервере,
 # не должен затираться/переноситься через git (см. docs, Publishing)
 services/content-api/data/
+__pycache__/
