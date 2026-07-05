@@ -51,6 +51,86 @@ def _on_alarm(signum, frame):
     raise HarnessTimeout()
 
 
+class MiniTurtle:
+    """
+    Замена настоящего модуля turtle (Module 5 учебного плана, «Графика»).
+    Обычный turtle рисует в окне tkinter — в изолированном контейнере без
+    дисплея оно не откроется, а «нарисованную картинку» нельзя сравнить с
+    ожидаемым значением так же, как остальные улики (числа/строки/списки).
+
+    MiniTurtle сохраняет тот же набор команд (forward/left/right/penup/...),
+    но вместо рисования на экране записывает пройденный путь как список
+    отрезков — это и есть «результат», который возвращает решение агента и
+    с которым авточекер сравнивает эталон, как с любой другой уликой.
+    Player отдельно умеет отрисовать этот путь на canvas — учащийся видит
+    настоящий рисунок, просто по другому конвейеру, чем в обычном Python.
+    """
+
+    def __init__(self):
+        self.x = 0.0
+        self.y = 0.0
+        self.heading = 0.0  # градусы, 0 = вправо (восток), рост — против часовой стрелки, как в turtle
+        self.pen_down = True
+        self.path = []
+
+    def _move_to(self, nx, ny):
+        self.path.append({
+            'from': [round(self.x, 4), round(self.y, 4)],
+            'to': [round(nx, 4), round(ny, 4)],
+            'pen': self.pen_down,
+        })
+        self.x, self.y = nx, ny
+
+    def forward(self, dist):
+        rad = math.radians(self.heading)
+        self._move_to(self.x + dist * math.cos(rad), self.y + dist * math.sin(rad))
+
+    fd = forward
+
+    def backward(self, dist):
+        self.forward(-dist)
+
+    bk = backward
+    back = backward
+
+    def left(self, angle):
+        self.heading = (self.heading + angle) % 360
+
+    lt = left
+
+    def right(self, angle):
+        self.heading = (self.heading - angle) % 360
+
+    rt = right
+
+    def penup(self):
+        self.pen_down = False
+
+    pu = penup
+    up = penup
+
+    def pendown(self):
+        self.pen_down = True
+
+    pd = pendown
+    down = pendown
+
+    def goto(self, x, y):
+        self._move_to(x, y)
+
+    setpos = goto
+    setposition = goto
+
+    def home(self):
+        self.goto(0, 0)
+        self.heading = 0
+
+    def setheading(self, angle):
+        self.heading = angle % 360
+
+    seth = setheading
+
+
 def normalize(value):
     """
     Приводит numpy/pandas объекты к обычным JSON-совместимым структурам,
@@ -131,7 +211,7 @@ def main():
         signal.signal(signal.SIGALRM, _on_alarm)
         signal.alarm(TIMEOUT_SECONDS)
 
-    namespace = {}
+    namespace = {'new_turtle': lambda: MiniTurtle()}
     try:
         exec(code, namespace)
     except HarnessTimeout:
@@ -149,6 +229,8 @@ def main():
         return
 
     results = []
+    last_snapshot = None  # последний нормализованный результат вызова — для
+                           # визуализации (напр. путь MiniTurtle), не только для сверки
     try:
         for ev in evidence:
             ev_result = {'evidenceId': ev['id'], 'pass': True}
@@ -161,6 +243,7 @@ def main():
                     ev_result = {'evidenceId': ev['id'], 'pass': False, 'crashed': True, 'test': t, 'error': fmt_error(e)}
                     break
                 got_norm = normalize(got)
+                last_snapshot = got_norm
                 if not close_enough(got_norm, t['expect']):
                     ev_result = {'evidenceId': ev['id'], 'pass': False, 'crashed': False, 'test': t, 'got': got_norm}
                     break
@@ -171,7 +254,7 @@ def main():
     finally:
         cancel_alarm()
 
-    print(json.dumps({'compileError': None, 'results': results}))
+    print(json.dumps({'compileError': None, 'results': results, 'lastResult': last_snapshot}))
 
 
 if __name__ == '__main__':

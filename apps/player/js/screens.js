@@ -1224,6 +1224,9 @@ function renderCheck(root, c, autorun) {
       if (!failed.length) {
         logGameEvent('task.check_passed', { caseId: c.id, attemptsLeft: cs.attempts, tries: cs.tries });
         toast('success', 'Все улики подтверждены', 'Дело готово к закрытию, агент.');
+        if (c.visual === 'turtle') {
+          root.querySelector('#check-detail').innerHTML = `<div class="check-detail"><div class="mono-s t3" style="margin-bottom:8px">Рисунок по данным решения:</div>${renderTurtlePath(response.lastResult)}</div>`;
+        }
         actions.innerHTML = `<button class="btn btn-primary btn-l btn-pulse" data-go="/case/${c.id}/report">Перейти к отчёту</button>`;
         bindCommon(actions);
         cs.failStreak = 0; save();

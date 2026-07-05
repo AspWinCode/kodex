@@ -118,6 +118,28 @@ function fmtCall(fnName, args) {
   return `${fnName}(${args.map(a => JSON.stringify(a)).join(', ')})`;
 }
 
+/* ---------- визуализация MiniTurtle (Module 5, «Графика») ----------
+ * Настоящий turtle рисует в окне — на сервере (изолированный Docker без
+ * дисплея) это невозможно, поэтому Python Runner подменяет его на
+ * MiniTurtle (services/python-runner/harness.py): решение агента
+ * возвращает записанный путь как обычные данные, а рисунок строит уже
+ * браузер — вот этой функцией, из ответа авточекера (response.lastResult). */
+function renderTurtlePath(path) {
+  if (!Array.isArray(path) || !path.length) return '<p class="t3">Путь пуст — решение ничего не нарисовало.</p>';
+  const xs = path.flatMap(s => [s.from[0], s.to[0]]);
+  const ys = path.flatMap(s => [s.from[1], s.to[1]]);
+  const pad = 20;
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = Math.max(maxX - minX, 1), h = Math.max(maxY - minY, 1);
+  const vbX = minX - pad, vbY = -maxY - pad, vbW = w + pad * 2, vbH = h + pad * 2;
+  const lines = path
+    .filter(s => s.pen)
+    .map(s => `<line x1="${s.from[0]}" y1="${-s.from[1]}" x2="${s.to[0]}" y2="${-s.to[1]}" stroke="var(--accent)" stroke-width="${Math.max(w, h) / 80 || 1}" stroke-linecap="round"/>`)
+    .join('');
+  return `<svg class="turtle-canvas" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg">${lines}</svg>`;
+}
+
 /* ---------- разное ---------- */
 function pictureScale(total, done, currentIdx) {
   let segs = '';
