@@ -10,6 +10,31 @@ function el(html) {
   return t.content.firstElementChild;
 }
 
+/* ---------- редактор кода (CodeMirror 5, ванильно — без сборки) ----------
+ * Подсветка синтаксиса Python, автоотступы после `:`, Tab как 4 пробела,
+ * подсветка парных скобок — то, чего не даёт голый <textarea>, а для
+ * Python (где отступ значим) это не косметика, а реальная эргономика.
+ * CodeMirror вендорится в apps/player/vendor/codemirror — не внешний CDN,
+ * чтобы верстак не зависел от стороннего аптайма. */
+function mountCodeEditor(textareaEl, { onChange } = {}) {
+  const cm = CodeMirror.fromTextArea(textareaEl, {
+    mode: 'python',
+    theme: 'kodex',
+    lineNumbers: true,
+    indentUnit: 4,
+    tabSize: 4,
+    indentWithTabs: false,
+    smartIndent: true,
+    matchBrackets: true,
+    viewportMargin: Infinity,
+    extraKeys: {
+      Tab: (cm) => cm.replaceSelection('    ', 'end'),
+    },
+  });
+  if (onChange) cm.on('change', () => onChange(cm.getValue()));
+  return cm;
+}
+
 /* ---------- иконки (линейные, 1.5px) ---------- */
 const ICONS = {
   hub: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>',

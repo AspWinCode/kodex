@@ -1030,23 +1030,16 @@ function renderBench(root, c) {
     </div>
   </div>`;
 
-  const ta = root.querySelector('#code');
   const saveInd = root.querySelector('#save-ind');
   let saveTimer;
-  ta.addEventListener('input', () => {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      cs.code = ta.value; save();
-      saveInd.textContent = 'черновик сохранён ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-    }, 600);
-  });
-  ta.addEventListener('keydown', e => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const s = ta.selectionStart;
-      ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(ta.selectionEnd);
-      ta.selectionStart = ta.selectionEnd = s + 2;
-    }
+  const cm = mountCodeEditor(root.querySelector('#code'), {
+    onChange: (code) => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        cs.code = code; save();
+        saveInd.textContent = 'черновик сохранён ' + new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+      }, 600);
+    },
   });
 
   root.querySelector('#task-box').onclick = () => {
@@ -1072,7 +1065,7 @@ function renderBench(root, c) {
 
   const out = root.querySelector('#console-out');
   root.querySelector('#dry-run').onclick = async () => {
-    cs.code = ta.value; save();
+    cs.code = cm.getValue(); save();
     out.innerHTML = `<span class="dim">Отправка на сервер…</span>`;
     // Черновой прогон проверяет только первый тест каждой улики — быстрый
     // предпросмотр, не тратящий попытку (сама попытка списывается только
@@ -1095,7 +1088,7 @@ function renderBench(root, c) {
   };
 
   root.querySelector('#submit').onclick = () => {
-    cs.code = ta.value; save();
+    cs.code = cm.getValue(); save();
     go(`/case/${c.id}/check?run=1`);
   };
 
@@ -1545,10 +1538,10 @@ function renderDrill(root, id, fromCase) {
       <button class="btn btn-primary" id="drill-run">Прогон</button>
     </div>
   </div>`;
-  const ta = root.querySelector('#drill-code');
-  ta.addEventListener('input', () => { ps.code = ta.value; save(); });
+  mountCodeEditor(root.querySelector('#drill-code'), {
+    onChange: (code) => { ps.code = code; save(); },
+  });
   root.querySelector('#drill-run').onclick = async () => {
-    ps.code = ta.value; save();
     const out = root.querySelector('#drill-out');
     out.innerHTML = `<span class="dim">Отправка на сервер…</span>`;
     const response = await runOnServer(ps.code, d.fnName, [{ id: 'drill', tests: d.tests }]);

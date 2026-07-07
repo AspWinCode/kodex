@@ -561,6 +561,29 @@ a:hover { text-decoration: underline; }
   font-family: var(--font-mono); font-size: 13.5px; line-height: 22px; padding: 14px 18px;
   color: #C9D6E3; tab-size: 2; min-height: 220px;
 }
+
+/* ---------- CodeMirror (редактор Python на верстаке и полигоне) ---------- */
+.bench-editor-col .CodeMirror,
+.bench-editor-col + .CodeMirror { flex: 1; min-height: 220px; }
+.CodeMirror.cm-s-kodex {
+  height: 100%; font-family: var(--font-mono); font-size: 13.5px; line-height: 22px;
+  background: var(--bg-base); color: #C9D6E3;
+}
+.cm-s-kodex .CodeMirror-gutters { background: var(--bg-base); border-right: 1px solid var(--border); }
+.cm-s-kodex .CodeMirror-linenumber { color: var(--text-3); }
+.cm-s-kodex .CodeMirror-cursor { border-left: 1.5px solid var(--accent); }
+.cm-s-kodex div.CodeMirror-selected { background: var(--accent-subtle); }
+.cm-s-kodex .CodeMirror-matchingbracket { color: var(--accent) !important; text-decoration: underline; }
+.cm-s-kodex .cm-keyword { color: var(--info); }
+.cm-s-kodex .cm-def { color: var(--accent); }
+.cm-s-kodex .cm-variable { color: #C9D6E3; }
+.cm-s-kodex .cm-property { color: #C9D6E3; }
+.cm-s-kodex .cm-string, .cm-s-kodex .cm-string-2 { color: var(--warning); }
+.cm-s-kodex .cm-number { color: var(--locked); }
+.cm-s-kodex .cm-comment { color: var(--text-3); font-style: italic; }
+.cm-s-kodex .cm-operator { color: var(--text-2); }
+.cm-s-kodex .cm-builtin { color: var(--info); }
+.cm-s-kodex .cm-atom { color: var(--locked); }
 .bench-console { border-top: 1px solid var(--border); background: var(--bg-base); max-height: 180px; overflow-y: auto; }
 .console-head { display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-family: var(--font-mono); font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid var(--border); }
 .console-out { padding: 10px 16px; font-family: var(--font-mono); font-size: 12px; line-height: 20px; white-space: pre-wrap; }
