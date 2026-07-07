@@ -63,10 +63,28 @@ function calcCaseReward(c) {
 /* ---------- Achievement Engine — проверка условий значков ---------- *
  * Условия достижений вынесены сюда явным списком (вместо разбросанных
  * grantBadge-вызовов), чтобы новое достижение добавлялось в одном месте. */
+
+// module (Learning Architecture, docs/04) → значок за полное прохождение модуля.
+// Модули 1 и 2 объединены в один значок — ни одно дело сейчас не помечено
+// module: 1 (все ранние дела на самом деле уже используют циклы/условия).
+const MODULE_BADGE = { 2: 'mod-12', 3: 'mod-3', 4: 'mod-4', 5: 'mod-5', 6: 'mod-6', 7: 'mod-7', 8: 'mod-8', 9: 'mod-9' };
+
 function checkAchievements(c, cs) {
   const earned = ['first-case'];
   if (cs.tries === 1) earned.push('clean');
   if (c.materials && cs.studied.length >= c.materials.length) earned.push('bookworm');
   if (S.agent.streak >= 3) earned.push('streak3');
+
+  // solveCase() выставляет cs.status = SOLVED до вызова checkAchievements —
+  // solvedCases() здесь уже включает только что раскрытое дело.
+  const solvedIds = new Set(solvedCases().map(x => x.id));
+  const badgeForModule = c.module && MODULE_BADGE[c.module];
+  if (badgeForModule) {
+    const moduleCases = CASES.filter(x => x.playable && x.module === c.module);
+    if (moduleCases.length && moduleCases.every(x => solvedIds.has(x.id))) earned.push(badgeForModule);
+  }
+  const allPlayable = CASES.filter(x => x.playable);
+  if (allPlayable.length && allPlayable.every(x => solvedIds.has(x.id))) earned.push('certificate');
+
   return earned;
 }
