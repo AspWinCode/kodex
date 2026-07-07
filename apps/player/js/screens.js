@@ -1548,6 +1548,8 @@ function renderDrill(root, id, fromCase) {
     if (response.compileError) { out.innerHTML = `<span class="err">✗ ${esc(response.compileError)}</span>`; return; }
     const res = (response.results || [])[0] || { pass: false, crashed: true, error: 'Раннер не вернул результат' };
     if (res.pass) {
+      const visualHtml = d.visual === 'turtle' ? renderTurtlePath(response.lastResult)
+        : d.visual === 'chart' ? renderChartSpec(response.lastResult) : '';
       if (!ps.done) {
         ps.done = true;
         // учение снимает часть кулдауна
@@ -1556,7 +1558,7 @@ function renderDrill(root, id, fromCase) {
         toast('success', 'Навык отработан', fromCase ? 'Кулдаун верстака сокращён. Возвращайтесь к делу.' : 'Учение зачтено.');
         renderDrill(root, id, fromCase);
       }
-      root.querySelector('#drill-out').innerHTML = `<span class="ok">✓ Все проверки пройдены. Навык отработан.</span>`;
+      root.querySelector('#drill-out').innerHTML = `<span class="ok">✓ Все проверки пройдены. Навык отработан.</span>` + (visualHtml ? `<div style="margin-top:10px">${visualHtml}</div>` : '');
     } else {
       out.innerHTML = res.crashed
         ? `<span class="err">✗ Остановка: ${esc(res.error)}</span>`
