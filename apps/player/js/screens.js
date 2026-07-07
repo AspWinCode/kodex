@@ -1224,6 +1224,9 @@ function renderCheck(root, c, autorun) {
         }
         actions.innerHTML = `<button class="btn btn-primary btn-l btn-pulse" data-go="/case/${c.id}/report">Перейти к отчёту</button>`;
         bindCommon(actions);
+        // maxFailStreak сохраняет пик до сброса — иначе к моменту solveCase()
+        // (после перехода в отчёт) failStreak уже обнулён и «Не сдаюсь» не сработает.
+        cs.maxFailStreak = Math.max(cs.maxFailStreak || 0, cs.failStreak || 0);
         cs.failStreak = 0; save();
         return;
       }
@@ -1239,7 +1242,9 @@ function renderCheck(root, c, autorun) {
       root.querySelector('#check-detail').innerHTML = `<div class="check-detail">${detail}</div>`;
 
       if (cs.attempts <= 0) {
-        cs.cooldownUntil = Date.now() + COOLDOWN_SEC * 1000; save();
+        cs.cooldownUntil = Date.now() + COOLDOWN_SEC * 1000;
+        cs.hitCooldown = true;
+        save();
         toast('warning', 'Попытки исчерпаны', 'Дело на паузе. Верстак остынет через минуту.');
       }
       actions.innerHTML = `<button class="btn btn-primary" data-go="/case/${c.id}/bench">Вернуться на верстак</button>
@@ -1483,6 +1488,7 @@ function buyItem(id, rerender) {
     } else S.inventory[item.id] = true;
     if (item.type === 'consumable' && item.id !== 'hint-pack') S.inventory[item.id] = (S.inventory[item.id] || 0) + 1;
     logEvent(`Снабжение: «${item.name}» (−${item.price} кр)`);
+    checkShopAchievement();
     save();
     toast('success', 'Снаряжение выдано', `«${item.name}» — ${item.desc}.`);
     rerender();
@@ -1554,6 +1560,7 @@ function renderDrill(root, id, fromCase) {
         ps.done = true;
         // учение снимает часть кулдауна
         Object.values(S.cases).forEach(cs => { if (cs.cooldownUntil > Date.now()) cs.cooldownUntil -= 30000; });
+        checkPolygonScoutAchievement();
         save();
         toast('success', 'Навык отработан', fromCase ? 'Кулдаун верстака сокращён. Возвращайтесь к делу.' : 'Учение зачтено.');
         renderDrill(root, id, fromCase);

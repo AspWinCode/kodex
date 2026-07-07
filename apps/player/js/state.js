@@ -60,7 +60,7 @@ function caseState(id) {
       status: CASE_STATE.AVAILABLE, stage: 'briefing', studied: [], code: null,
       attempts: MAX_ATTEMPTS, hintsUsed: [], cooldownUntil: 0,
       solvedAt: null, claimed: false, tries: 0, versionOk: false, briefed: false,
-      failStreak: 0,
+      failStreak: 0, maxFailStreak: 0, hitCooldown: false,
     };
   }
   return S.cases[id];

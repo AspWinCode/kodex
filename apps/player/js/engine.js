@@ -75,9 +75,19 @@ function checkAchievements(c, cs) {
   if (c.materials && cs.studied.length >= c.materials.length) earned.push('bookworm');
   if (S.agent.streak >= 3) earned.push('streak3');
 
+  // — стиль игры: мастерство, настойчивость, объём (не привязаны к модулям) —
+  if ((cs.hintsUsed || []).length === 0) earned.push('no-hint');
+  if (c.difficulty === 3 && cs.tries === 1 && (cs.hintsUsed || []).length === 0) earned.push('hard-clean');
+  if ((cs.maxFailStreak || 0) >= 3) earned.push('comeback');
+  if (cs.hitCooldown) earned.push('second-wind');
+  if (agentRank().level >= RANKS.length) earned.push('top-rank');
+
   // solveCase() выставляет cs.status = SOLVED до вызова checkAchievements —
   // solvedCases() здесь уже включает только что раскрытое дело.
   const solvedIds = new Set(solvedCases().map(x => x.id));
+  if (solvedIds.size >= 10) earned.push('veteran');
+  if (solvedIds.size >= 25) earned.push('legend');
+
   const badgeForModule = c.module && MODULE_BADGE[c.module];
   if (badgeForModule) {
     const moduleCases = CASES.filter(x => x.playable && x.module === c.module);
@@ -87,4 +97,14 @@ function checkAchievements(c, cs) {
   if (allPlayable.length && allPlayable.every(x => solvedIds.has(x.id))) earned.push('certificate');
 
   return earned;
+}
+
+// — значки вне цикла раскрытия дела: наводка, снабжение, полигон —
+// (вызываются напрямую из overlays.js/screens.js в момент действия, а не
+// через checkAchievements, потому что не привязаны к раскрытию дела).
+function checkPolygonScoutAchievement() {
+  if (POLYGON.length && POLYGON.every(d => S.polygon[d.id] && S.polygon[d.id].done)) grantBadge('polygon-scout');
+}
+function checkShopAchievement() {
+  if (SHOP.length && SHOP.every(i => S.inventory[i.id])) grantBadge('well-equipped');
 }

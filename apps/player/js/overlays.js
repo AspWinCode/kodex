@@ -185,6 +185,7 @@ function renderJarvisActions() {
     log.push({ who: 'bot', text: c.hints[lvl] });
     logEvent(`Наводка ${'I'.repeat(lvl)} по делу ${c.num}`, caseId);
     logGameEvent('hint.delivered', { caseId, level: lvl, free: freeL1 });
+    grantBadge('curious-agent');
     save();
     renderJarvisFeed();
     renderJarvisActions();
