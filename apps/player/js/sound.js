@@ -2,23 +2,26 @@
  * Все звуки синтезируются через AudioContext — без внешних файлов.
  * Вызов: sfx('success') | sfx('fail') | sfx('badge') | sfx('win') |
  *        sfx('info') | sfx('warn') | sfx('click') | sfx('unlock')
- * Звук отключается, если пользователь не взаимодействовал со страницей
- * (политика браузера) — AudioContext создаётся лениво при первом вызове.
- * Пользователь может отключить звук через localStorage: kodex-sfx=off */
+ * Пользователь может отключить звук через localStorage: kodex-sfx=off
+ * Или через консоль: sfxToggle() */
 'use strict';
 
 let _ac = null;
-function _ctx() {
+
+/* Разблокировка AudioContext при первом клике — capture:true гарантирует,
+ * что контекст уже running к моменту любых последующих async-вызовов sfx. */
+document.addEventListener('click', function _unlock() {
   if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
   if (_ac.state === 'suspended') _ac.resume();
-  return _ac;
-}
+}, { capture: true });
 
-function _play(notes, vol = 0.18) {
+async function _play(notes, vol = 0.18) {
   if (localStorage.getItem('kodex-sfx') === 'off') return;
   try {
-    const ac = _ctx();
-    let t = ac.currentTime + 0.01;
+    if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === 'suspended') await _ac.resume();
+    const ac = _ac;
+    let t = ac.currentTime + 0.02;
     notes.forEach(([freq, dur, type = 'sine', v = vol]) => {
       const osc = ac.createOscillator();
       const gain = ac.createGain();
@@ -27,8 +30,8 @@ function _play(notes, vol = 0.18) {
       osc.frequency.setValueAtTime(freq, t);
       gain.gain.setValueAtTime(v, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      osc.start(t); osc.stop(t + dur + 0.01);
-      t += dur * 0.7;
+      osc.start(t); osc.stop(t + dur + 0.05);
+      t += dur * 0.75;
     });
   } catch (e) { /* AudioContext недоступен */ }
 }
@@ -51,7 +54,6 @@ function sfx(name) {
   if (SFX[name]) SFX[name]();
 }
 
-/* Переключатель звука — можно вызвать из консоли: sfxToggle() */
 function sfxToggle() {
   const off = localStorage.getItem('kodex-sfx') === 'off';
   localStorage.setItem('kodex-sfx', off ? 'on' : 'off');
