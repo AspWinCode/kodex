@@ -3,36 +3,38 @@
 
 const APP = document.getElementById('app');
 
-/* ---------- SSO ----------
-   Страниц регистрации и входа нет: пользователь приходит из внешнего портала
-   с токенами во фрагменте URL: #access_token=...&refresh_token=...&user=<base64url>. */
-(function ssoBootstrap() {
+/* ---------- SSO из learning-portal (docs/17-lms-integration.md) ----------
+ * Страниц регистрации и входа нет. Сервер (`GET /api/auth/sso`) уже проверил
+ * одноразовый JWT LMS и передаёт сюда только external_ref/имя во фрагменте
+ * URL — сам токен больше не нужен и не виден Player. external_ref — устойчивый
+ * ID ученика в LMS, не зависит от браузера/устройства: с ним прогресс агента
+ * хранится на сервере (services/content-api: /api/lms-progress/:externalRef),
+ * а не только в localStorage. window.__LMS_READY__ — промис, которого
+ * дожидается первый route() (см. конец файла), чтобы не отрисовать хаб на
+ * пустом состоянии, пока серверное досье ещё не подгружено. */
+window.__LMS_READY__ = (function lmsBootstrap() {
   const h = location.hash;
-  if (h.includes('access_token=')) {
-    try {
-      const params = new URLSearchParams(h.replace(/^#\/?/, ''));
-      const access = params.get('access_token');
-      const refresh = params.get('refresh_token');
-      const userB64 = params.get('user');
-      if (access) {
-        S.sso = { access, refresh };
-        if (userB64) {
-          const json = atob(userB64.replace(/-/g, '+').replace(/_/g, '/'));
-          const user = JSON.parse(decodeURIComponent(escape(json)));
-          S.sso.user = user;
-          if (user.name && !S.agent.callsign) S.agent.callsign = String(user.name).toUpperCase();
-        }
-        S.loggedIn = true;
-        save();
-      }
-      history.replaceState(null, '', location.pathname);
-      location.hash = S.onboarded ? '/hub' : '/onboarding';
-    } catch (e) { /* битый fragment — игнорируем */ }
-  }
-  // Сеанс без токена: в проде здесь был бы редирект на SSO-портал;
-  // в прототипе открываем терминал сразу.
-  if (!S.loggedIn) { S.loggedIn = true; save(); }
+  if (!h.includes('sso_ref=')) return Promise.resolve();
+
+  const params = new URLSearchParams(h.replace(/^#\/?/, ''));
+  const ref = params.get('sso_ref');
+  const name = params.get('sso_name');
+  history.replaceState(null, '', location.pathname); // не оставлять ref в истории/адресной строке
+
+  if (!ref) return Promise.resolve();
+
+  S.lmsExternalRef = ref;
+  if (name && !S.agent.callsign) S.agent.callsign = name.toUpperCase();
+  S.loggedIn = true;
+  save();
+
+  return fetchLmsProgress(ref).then(remote => {
+    if (remote) Object.assign(S, remote, { lmsExternalRef: ref }); // серверное досье — источник истины при входе через LMS
+    save();
+  }).catch(() => { /* сервер недоступен — продолжаем с тем, что уже есть локально */ });
 })();
+
+if (!S.loggedIn) { S.loggedIn = true; save(); }
 
 /* ---------- каркас ---------- */
 function renderShell(route) {
@@ -165,7 +167,7 @@ function currentRoute() {
 
 function route() {
   // SSO-редирект может прийти сменой одного лишь фрагмента — прогоняем bootstrap заново
-  if (location.hash.includes('access_token=')) { location.reload(); return; }
+  if (location.hash.includes('sso_ref=')) { location.reload(); return; }
   closeJarvis();
   document.getElementById('overlay-root').innerHTML = '';
   const r = currentRoute();
@@ -225,9 +227,11 @@ window.addEventListener('online', () => {
 
 /* ---------- старт ---------- *
  * Дожидаемся applyStudioOverrides (content-overrides.js) — сетевой запрос
- * к content-api за правками Studio — прежде чем маршрутизировать первый
- * экран, иначе игрок иногда увидел бы дело без свежей правки методиста. */
-Promise.resolve(window.__CONTENT_READY__).then(() => {
+ * к content-api за правками Studio — и __LMS_READY__ (докладная о серверном
+ * досье выше) прежде чем маршрутизировать первый экран, иначе игрок иногда
+ * увидел бы дело без свежей правки методиста либо хаб на пустом прогрессе
+ * до того, как подгрузилось серверное досье из LMS. */
+Promise.all([window.__CONTENT_READY__, window.__LMS_READY__]).then(() => {
   if (!location.hash) location.hash = S.onboarded ? '/hub' : '/onboarding';
   route();
 });

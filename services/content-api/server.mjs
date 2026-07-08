@@ -26,11 +26,13 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { generateDraftCase, currentProviderName } from './ai/gateway.mjs';
 import { runPython, runnerModeDescription } from './runner/python-runner.mjs';
+import { verifySsoToken } from './sso/kodex-sso.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const DATA_DIR = fileURLToPath(new URL('./data', import.meta.url));
 const CONTENT_FILE = path.join(DATA_DIR, 'studio-content.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
+const LMS_PROGRESS_FILE = path.join(DATA_DIR, 'lms-progress.json');
 const SEED_FILE = path.join(ROOT, 'packages/game-data/data.js');
 const PORT = Number(process.env.PORT) || 4173;
 
@@ -84,6 +86,29 @@ async function readContentStore() {
 
 async function writeContentStore(store) {
   await writeFile(CONTENT_FILE, JSON.stringify(store, null, 2));
+}
+
+/* ---------- прогресс учеников, пришедших через LMS SSO (docs/17) ---------- *
+ * Ключ — external_ref из SSO-токена (устойчивый ID ученика в learning-portal,
+ * не привязан к браузеру/устройству — в отличие от обычного прогресса в
+ * localStorage, см. docs/17-lms-integration.md, раздел 2). Формат значения —
+ * весь блоб состояния Player (S из apps/player/js/state.js) как есть, без
+ * отдельной схемы: один источник структуры (state.js), не две схемы для
+ * синхронизации при любом будущем изменении полей. */
+
+async function readLmsProgressStore() {
+  try {
+    const raw = await readFile(LMS_PROGRESS_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+async function writeLmsProgressStore(store) {
+  await mkdir(DATA_DIR, { recursive: true });
+  await writeFile(LMS_PROGRESS_FILE, JSON.stringify(store, null, 2));
 }
 
 /* ---------- версии и рецензия (Studio Architecture, docs/09) ---------- *
@@ -224,6 +249,51 @@ function sendJson(res, code, obj) {
 
 async function handleApi(req, res, pathname, query) {
   if (pathname === '/api/health') { sendJson(res, 200, { ok: true, aiProvider: currentProviderName(), pythonRunner: runnerModeDescription() }); return true; }
+
+  // GET /api/auth/sso?token=... — вход из learning-portal (docs/17-lms-integration.md).
+  // Одноразовый JWT (HS256, TTL 60с) от app/services/kodex_sso.py на стороне LMS.
+  // Успех — редирект в Player с external_ref во фрагменте URL (не в query —
+  // фрагмент не логируется прокси/сервером и не попадает в историю запросов).
+  if (pathname === '/api/auth/sso' && req.method === 'GET') {
+    const token = query.get('token');
+    let payload;
+    try {
+      payload = verifySsoToken(token, process.env.SSO_KODEX_SHARED_SECRET);
+    } catch (e) {
+      sendJson(res, 401, { error: e.message });
+      return true;
+    }
+    const ref = encodeURIComponent(payload.external_ref);
+    const name = encodeURIComponent(payload.full_name || '');
+    res.writeHead(302, { Location: `/apps/player/index.html#sso_ref=${ref}&sso_name=${name}` });
+    res.end();
+    return true;
+  }
+
+  // GET/PUT /api/lms-progress/:externalRef — серверное досье ученика, вошедшего
+  // через LMS SSO (не по localStorage браузера — переживает смену устройства).
+  if (pathname.startsWith('/api/lms-progress/')) {
+    const externalRef = decodeURIComponent(pathname.slice('/api/lms-progress/'.length));
+    if (!externalRef) { sendJson(res, 400, { error: 'не указан external_ref' }); return true; }
+
+    if (req.method === 'GET') {
+      const store = await readLmsProgressStore();
+      if (!(externalRef in store)) { sendJson(res, 404, { error: 'прогресс ещё не сохранялся' }); return true; }
+      sendJson(res, 200, { state: store[externalRef] });
+      return true;
+    }
+
+    if (req.method === 'PUT') {
+      let payload;
+      try { payload = await readJsonBody(req); } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
+      if (!payload || typeof payload !== 'object' || !payload.state) { sendJson(res, 400, { error: 'ожидался { state: {...} }' }); return true; }
+      const store = await readLmsProgressStore();
+      store[externalRef] = payload.state;
+      await writeLmsProgressStore(store);
+      sendJson(res, 200, { ok: true });
+      return true;
+    }
+  }
 
   // POST /api/run — исполнение решения агента (Evaluation Engine).
   // Раньше это делалось в браузере через new Function() — теперь через

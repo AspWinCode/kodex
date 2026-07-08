@@ -45,11 +45,35 @@ function loadState() {
 
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* offline-режим */ }
+  if (S.lmsExternalRef) syncLmsProgress();
 }
 
 function resetState() {
   localStorage.removeItem(STORE_KEY);
   S = defaultState();
+}
+
+/* ---------- прогресс через LMS SSO (docs/17-lms-integration.md) ----------
+ * Best-effort, как и остальная сетевая синхронизация в проекте (аналитика,
+ * Publishing): сбой сети никогда не блокирует и не откатывает игровое
+ * действие — localStorage уже сохранён к этому моменту в любом случае. */
+function fetchLmsProgress(externalRef) {
+  return fetch(`/api/lms-progress/${encodeURIComponent(externalRef)}`)
+    .then(res => res.ok ? res.json() : null)
+    .then(body => body && body.state)
+    .catch(() => null);
+}
+
+let lmsSyncTimer = null;
+function syncLmsProgress() {
+  clearTimeout(lmsSyncTimer);
+  lmsSyncTimer = setTimeout(() => {
+    fetch(`/api/lms-progress/${encodeURIComponent(S.lmsExternalRef)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: S }),
+    }).catch(() => { /* офлайн/сервис недоступен — прогресс уже в localStorage */ });
+  }, 800);
 }
 
 /* ---------- селекторы ---------- */

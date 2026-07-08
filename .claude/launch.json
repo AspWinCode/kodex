@@ -6,7 +6,7 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["services/content-api/server.mjs"],
       "port": 4173,
-      "env": { "PYTHON_RUNNER_MODE": "unsafe-local-dev" }
+      "env": { "PYTHON_RUNNER_MODE": "unsafe-local-dev", "SSO_KODEX_SHARED_SECRET": "test-shared-secret-12345" }
     }
   ]
 }
