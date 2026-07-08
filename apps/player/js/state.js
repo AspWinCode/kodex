@@ -132,7 +132,7 @@ function grantBadge(id) {
   if (!S.agent.badges.includes(id)) {
     S.agent.badges.push(id);
     const b = BADGES.find(x => x.id === id);
-    if (b) toast('accent', 'Новый значок', `${b.icon} «${b.name}»`);
+    if (b) { sfx('badge'); toast('accent', 'Новый значок', `${b.icon} «${b.name}»`); }
     logGameEvent('achievement.granted', { id });
   }
 }

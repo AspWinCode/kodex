@@ -975,7 +975,7 @@ function openDocOverlay(c, matId, onClose) {
     if (!x) return;
     if (x.dataset.x === 'done' && !cs.studied.includes(m.id)) {
       cs.studied.push(m.id); save();
-      toast('info', 'Материал изучен', `«${m.title}» добавлен в вашу картину дела.`);
+      sfx('info'); toast('info', 'Материал изучен', `«${m.title}» добавлен в вашу картину дела.`);
     }
     close();
   });
@@ -1059,7 +1059,7 @@ function renderBench(root, c) {
   root.querySelector('#reset-code').onclick = () => {
     confirmDialog('Сбросить решение?', 'Верстак вернётся к стартовому шаблону. Материалы и статус дела сохранятся.', 'Сбросить', () => {
       cs.code = c.starter; save(); renderBench(root, c);
-      toast('warning', 'Верстак очищен', 'Стартовый шаблон восстановлен.');
+      sfx('warn'); toast('warning', 'Верстак очищен', 'Стартовый шаблон восстановлен.');
     }, true);
   };
 
@@ -1117,7 +1117,7 @@ function renderBench(root, c) {
           clearInterval(iv);
           cs.attempts = 2; save();
           slot.innerHTML = '';
-          toast('success', 'Верстак остыл', 'Выдано 2 резервные попытки. За дело, агент.');
+          sfx('unlock'); toast('success', 'Верстак остыл', 'Выдано 2 резервные попытки. За дело, агент.');
           renderBench(root, c);
         } else t.textContent = fmtSec(l);
       }, 500);
@@ -1161,7 +1161,7 @@ function renderCheck(root, c, autorun) {
   } else runCheck();
 
   async function runCheck() {
-    if (cs.attempts <= 0) { toast('warning', 'Попытки исчерпаны', 'Верстак на паузе — загляните туда.'); return; }
+    if (cs.attempts <= 0) { sfx('warn'); toast('warning', 'Попытки исчерпаны', 'Верстак на паузе — загляните туда.'); return; }
     actions.innerHTML = '';
     root.querySelector('#check-detail').innerHTML = '';
     cs.attempts -= 1; cs.tries += 1; save();
@@ -1216,7 +1216,7 @@ function renderCheck(root, c, autorun) {
 
       if (!failed.length) {
         logGameEvent('task.check_passed', { caseId: c.id, attemptsLeft: cs.attempts, tries: cs.tries });
-        toast('success', 'Все улики подтверждены', 'Дело готово к закрытию, агент.');
+        sfx('success'); toast('success', 'Все улики подтверждены', 'Дело готово к закрытию, агент.');
         if (c.visual === 'turtle') {
           root.querySelector('#check-detail').innerHTML = `<div class="check-detail"><div class="mono-s t3" style="margin-bottom:8px">Рисунок по данным решения:</div>${renderTurtlePath(response.lastResult)}</div>`;
         } else if (c.visual === 'chart') {
@@ -1233,7 +1233,7 @@ function renderCheck(root, c, autorun) {
 
       cs.failStreak = (cs.failStreak || 0) + 1;
       const f = failed[0];
-      logGameEvent('task.check_failed', { caseId: c.id, evidenceId: f.ev.id, crashed: !!f.r.crashed });
+      sfx('fail'); logGameEvent('task.check_failed', { caseId: c.id, evidenceId: f.ev.id, crashed: !!f.r.crashed });
       const detail = f.r.crashed
         ? `<div style="color:var(--error)">✗ ${esc(f.ev.name)}: обработчик остановился с ошибкой.</div>
            <div class="exp" style="margin-top:6px">${esc(f.r.error)}</div>`
@@ -1245,7 +1245,7 @@ function renderCheck(root, c, autorun) {
         cs.cooldownUntil = Date.now() + COOLDOWN_SEC * 1000;
         cs.hitCooldown = true;
         save();
-        toast('warning', 'Попытки исчерпаны', 'Дело на паузе. Верстак остынет через минуту.');
+        sfx('warn'); toast('warning', 'Попытки исчерпаны', 'Дело на паузе. Верстак остынет через минуту.');
       }
       actions.innerHTML = `<button class="btn btn-primary" data-go="/case/${c.id}/bench">Вернуться на верстак</button>
         <button class="btn btn-ghost" id="ask-jarvis">Запросить наводку</button>`;
@@ -1289,7 +1289,7 @@ function renderReport(root, c) {
       if (v.correct) { cs.versionOk = true; save(); stepFinale(); }
       else {
         b.classList.add('wrong');
-        toast('info', CURATORS[c.curator].name, 'Не спешите, агент. Сверьте версию с подтверждёнными уликами ещё раз.');
+        sfx('warn'); toast('info', CURATORS[c.curator].name, 'Не спешите, агент. Сверьте версию с подтверждёнными уликами ещё раз.');
       }
     });
   }
@@ -1321,7 +1321,7 @@ function renderReport(root, c) {
   function stepRewards() {
     const already = cs.status === 'solved';
     let promoted = false, rankAfter = agentRank();
-    if (!already) { const r = solveCase(c.id); promoted = r.promoted; rankAfter = r.rank; }
+    if (!already) { sfx('win'); const r = solveCase(c.id); promoted = r.promoted; rankAfter = r.rank; }
 
     inner.innerHTML = `
       <div class="mono-s t3">ПРИКАЗ ПО АГЕНТСТВУ // ${esc(c.num)}</div>
