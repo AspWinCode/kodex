@@ -1,5 +1,32 @@
 # Codex — журнал релизов
 
+## LMS-интеграция: обратный канал прогресса (Codex → learning-portal)
+
+Программисты `learning-portal` реализовали приёмный эндпоинт по нашей
+спецификации (`docs/17-lms-integration.md`, ранее раздел 3, передана им
+файлом `KODEX_PROGRESS_SYNC_SPEC.md`): `POST /api/v1/student-portal/progress-sync`
+(таблица `student_course_progress`, подпись `X-Kodex-Signature` тем же
+секретом, что и вход) — реальный путь оказался с префиксом `/api/v1`,
+не `/api`, учтено при подключении.
+
+Со стороны Codex (`services/content-api/server.mjs`):
+- `loadGameData()` / `buildLmsProgressSummary()` — считают сводку прогресса
+  (раскрыто дел, ранг, число значков, имя последнего значка) из состояния
+  Player и сида дел.
+- `pushLmsProgressSummary()` — подписывает сводку HMAC-SHA256 и best-effort
+  шлёт на `LMS_PROGRESS_SYNC_URL`, вызывается из `PUT /api/lms-progress/:externalRef`
+  сразу после сохранения, не блокируя ответ клиенту.
+
+Проверено: локально (мок-приёмник — тело и подпись совпали побайтово) и
+на реальном продакшн-эндпоинте LMS (`https://tirskix.space/api/v1/student-portal/progress-sync`) —
+корректные `401`/`404` на невалидные запросы, подтверждающие совместимость
+подписи и формата с их стороной.
+
+Это полностью закрывает `docs/16-product-delivery-roadmap.md` — единственный
+оставшийся пункт был именно этот обратный канал.
+
+---
+
 ## LMS-интеграция: вход по SSO из learning-portal + серверный прогресс
 
 Изучен реальный репозиторий `learning-portal` (кабинет ученика/родителя,

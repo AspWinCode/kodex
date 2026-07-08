@@ -19,6 +19,7 @@
  */
 
 import http from 'node:http';
+import crypto from 'node:crypto';
 import { readFile, writeFile, appendFile, mkdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -109,6 +110,72 @@ async function readLmsProgressStore() {
 async function writeLmsProgressStore(store) {
   await mkdir(DATA_DIR, { recursive: true });
   await writeFile(LMS_PROGRESS_FILE, JSON.stringify(store, null, 2));
+}
+
+/* ---------- сводка прогресса → learning-portal (docs/17, раздел 3) ---------- *
+ * Обратный канал: их программисты реализовали приёмный эндпоинт
+ * POST /api/v1/student-portal/progress-sync (проверено вручную на проде —
+ * см. CHANGELOG). Секрет для подписи — тот же SSO_KODEX_SHARED_SECRET, что
+ * и для входа; подпись вычисляется только здесь, на сервере — секрет
+ * никогда не передаётся в браузер Player. Best-effort: сбой сети не должен
+ * ломать сохранение прогресса на нашей стороне (см. Event Architecture,
+ * docs/13 — та же философия, что и у аналитики). */
+
+async function loadGameData() {
+  try {
+    const code = await readFile(SEED_FILE, 'utf8');
+    const ctx = {};
+    vm.createContext(ctx);
+    vm.runInContext(code, ctx, { filename: 'data.js' });
+    return {
+      CASES: vm.runInContext('CASES', ctx) || [],
+      BADGES: vm.runInContext('BADGES', ctx) || [],
+      RANKS: vm.runInContext('RANKS', ctx) || [],
+    };
+  } catch (e) {
+    return { CASES: [], BADGES: [], RANKS: [] };
+  }
+}
+
+function rankNameForReputation(reputation, RANKS) {
+  let r = RANKS[0];
+  for (const rank of RANKS) if (reputation >= rank.threshold) r = rank;
+  return r ? r.name : null;
+}
+
+function buildLmsProgressSummary(state, gameData) {
+  const { CASES, BADGES, RANKS } = gameData;
+  const cases = (state && state.cases) || {};
+  const solvedCount = Object.keys(cases).filter(id => cases[id] && cases[id].status === 'solved').length;
+  const casesTotal = CASES.filter(c => c.playable).length;
+  const badgeIds = (state && state.agent && state.agent.badges) || [];
+  const lastBadge = BADGES.find(b => b.id === badgeIds[badgeIds.length - 1]);
+  return {
+    cases_solved: solvedCount,
+    cases_total: casesTotal,
+    rank_name: rankNameForReputation((state && state.agent && state.agent.reputation) || 0, RANKS),
+    badges_count: badgeIds.length,
+    last_badge_name: lastBadge ? lastBadge.name : null,
+  };
+}
+
+async function pushLmsProgressSummary(externalRef, state) {
+  const url = process.env.LMS_PROGRESS_SYNC_URL;
+  const secret = process.env.SSO_KODEX_SHARED_SECRET;
+  if (!url || !secret) return; // не настроено на этом деплое — молча пропускаем
+
+  const gameData = await loadGameData();
+  const summary = buildLmsProgressSummary(state, gameData);
+  const body = JSON.stringify({ external_ref: externalRef, catalog_item_code: 'kodex', ...summary });
+  const signature = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Kodex-Signature': signature },
+      body,
+    });
+  } catch (e) { /* сеть/LMS недоступны — прогресс уже сохранён у нас, не критично */ }
 }
 
 /* ---------- версии и рецензия (Studio Architecture, docs/09) ---------- *
@@ -291,6 +358,7 @@ async function handleApi(req, res, pathname, query) {
       store[externalRef] = payload.state;
       await writeLmsProgressStore(store);
       sendJson(res, 200, { ok: true });
+      pushLmsProgressSummary(externalRef, payload.state); // best-effort, не блокирует ответ
       return true;
     }
   }

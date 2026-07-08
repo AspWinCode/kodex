@@ -6,7 +6,7 @@
 
 Единая учётная запись ученика между `learning-portal` (кабинет ученика/родителя, финансы, продажи — см. `github.com/AspWinCode/learning-portal`) и Codex: вход одним кликом из кабинета, прогресс сохраняется на сервере (не только в `localStorage` браузера — переживает смену устройства).
 
-Документ фиксирует **реально реализованный** протокол — часть уже работает на стороне Codex (этот репозиторий), часть ещё предстоит сделать на стороне `learning-portal` (раздел 3 — чёткая спецификация для их программистов, не для нас).
+Документ фиксирует **реально реализованный** протокол — оба направления (вход и обратная синхронизация прогресса) работают на обеих сторонах и проверены на проде.
 
 ---
 
@@ -52,78 +52,36 @@ Player (apps/player/js/app.js: lmsBootstrap):
 
 ---
 
-## 3. Направление 2: прогресс (Codex → LMS) — ❌ не реализовано, спецификация для программистов learning-portal
+## 3. Направление 2: прогресс (Codex → LMS) — ✅ реализовано с обеих сторон
 
-Сейчас в `learning-portal` нет способа принять данные о прохождении Codex обратно — ни поля в БД, ни эндпоинта. Это отдельная задача для программистов `learning-portal` (не для нас — мы можем только подготовить и, при необходимости, отправлять данные в их будущий эндпоинт).
+Полный цикл (спецификация из более раннего черновика этого документа передана программистам `learning-portal` файлом `KODEX_PROGRESS_SYNC_SPEC.md`; они реализовали свою часть, мы — свою). Проверено вручную на проде (см. `CHANGELOG.md`).
 
-### 3.1 Что нужно добавить в БД (`backend/app/models.py`)
+### 3.1 На стороне learning-portal (готово)
 
-Либо расширить `StudentCourseAccess` новыми колонками, либо (чище) новую таблицу `student_course_progress`:
+- Таблица `student_course_progress` (`backend/alembic/versions/0140_student_course_progress.py`, модель `StudentCourseProgress` в `models.py`).
+- Эндпоинт `POST /api/v1/student-portal/progress-sync` (`backend/app/routers/student_portal.py`) — путь фактически с префиксом `/api/v1`, не `/api` (важно для конфигурации на нашей стороне, см. 3.3).
+- Схема тела — `ProgressSyncRequest` (`backend/app/schemas/student_portal.py`): `external_ref`, `catalog_item_code`, `cases_solved`, `cases_total`, `rank_name`, `badges_count`, `last_badge_name`.
+- Проверка подписи `X-Kodex-Signature` — HMAC-SHA256 тем же `SSO_KODEX_SHARED_SECRET`, что и вход, `hmac.compare_digest` (тот же паттерн, что уже был в `auth.py: _hash_reset_code`).
+- Отображение прогресса — родительский дашборд (`parent_dashboard.py`), витрина курсов ученика.
 
-```python
-class StudentCourseProgress(Base):
-    __tablename__ = "student_course_progress"
+### 3.2 На стороне Codex (готово)
 
-    id = Column(Integer, primary_key=True)
-    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False, index=True)
-    catalog_item_id = Column(Integer, ForeignKey("course_catalog_items.id", ondelete="CASCADE"), nullable=False, index=True)
-    cases_solved = Column(Integer, nullable=False, default=0)
-    cases_total = Column(Integer, nullable=False, default=0)
-    rank_name = Column(String(64), nullable=True)          # напр. "Оперативник"
-    badges_count = Column(Integer, nullable=False, default=0)
-    last_badge_name = Column(String(128), nullable=True)     # для уведомления родителю о новом значке
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
-```
+`services/content-api/server.mjs`:
+- `loadGameData()` — читает `CASES`/`BADGES`/`RANKS` из сида (`packages/game-data/data.js`) тем же способом, что и `readSeedCaseIds()`.
+- `buildLmsProgressSummary(state, gameData)` — считает `cases_solved` (по `state.cases[*].status === 'solved'`), `cases_total` (все играбельные дела сида), `rank_name` (по порогам `RANKS` и текущей репутации), `badges_count` и `last_badge_name` (по последнему id в `state.agent.badges`, с расшифровкой имени через `BADGES`).
+- `pushLmsProgressSummary(externalRef, state)` — подписывает тело `HMAC-SHA256(SSO_KODEX_SHARED_SECRET, rawBody)` заголовком `X-Kodex-Signature` и best-effort шлёт `POST` на `LMS_PROGRESS_SYNC_URL`. Вызывается из обработчика `PUT /api/lms-progress/:externalRef` сразу после сохранения — не блокирует ответ клиенту (fire-and-forget, симметрично остальной аналитике проекта).
 
-### 3.2 Новый эндпоинт приёма прогресса
-
-```
-POST /api/student-portal/progress-sync
-Authorization: не JWT ученика — подписанный запрос тем же SSO_KODEX_SHARED_SECRET
-                (HMAC заголовком, см. 3.3), потому что вызывающая сторона — сервер
-                Codex, а не браузер ученика.
-
-Тело запроса:
-{
-  "external_ref": "lp-student-42",
-  "cases_solved": 13,
-  "cases_total": 39,
-  "rank_name": "Оперативник",
-  "badges_count": 5,
-  "last_badge_name": "Художник"
-}
-
-Ответ: 200 { "ok": true }  |  401 при неверной подписи  |  404 если external_ref не найден
-```
-
-Обработчик: найти `Student` по `external_ref` (обратное сопоставление `lp-student-{id}` → `id`), найти/создать `StudentCourseProgress` для пары (student, catalog_item code="kodex"), обновить поля.
-
-### 3.3 Подпись запроса (симметрично входящему JWT, тем же секретом)
-
-Простейший вариант — HMAC-подпись тела заголовком, без полноценного JWT (запрос server-to-server, не нуждается в `exp`/`aud` — только в проверке, что отправитель знает секрет):
-
-```
-X-Kodex-Signature: hex(HMAC-SHA256(SSO_KODEX_SHARED_SECRET, raw_body))
-```
-
-learning-portal проверяет подпись тем же способом, что уже умеет (`hmac.compare_digest`, см. `auth.py: _hash_reset_code` — в проекте уже есть паттерн HMAC-сравнения, использовать тот же).
-
-### 3.4 Где показывать эти данные
-
-- Родительский дашборд (`parent_dashboard.py`) — карточка «Кодэкс»: раскрыто дел из `cases_total`, ранг, число значков, дата последнего обновления.
-- Кабинет ученика (`student_portal.py`, витрина курсов) — под названием курса можно показать `cases_solved/cases_total` и последний значок.
-
-### 3.5 Что должен будет добавить Codex после появления этого эндпоинта (не сделано, ждёт их стороны)
-
-Небольшое дополнение к уже существующему `syncLmsProgress()` в `apps/player/js/state.js`: рядом с `PUT /api/lms-progress/:externalRef` — второй best-effort вызов `POST <learning-portal-url>/api/student-portal/progress-sync` с сводкой (не всем состоянием) и подписью из 3.3. Настраивается через переменную окружения `LMS_PROGRESS_SYNC_URL` в `content-api` (не хардкодить домен LMS в код Player). Это отдельная, самостоятельная задача — не блокирует всё остальное в этом документе.
-
----
-
-## 4. Переменные окружения
+### 3.3 Переменные окружения (обновлено)
 
 | Переменная | Где | Значение |
 |---|---|---|
-| `SSO_KODEX_SHARED_SECRET` | learning-portal и content-api (VPS) | общий секрет, сгенерировать один раз, прописать в оба `.env`/systemd |
-| `SSO_KODEX_TOKEN_TTL_SECONDS` | learning-portal | по умолчанию 60, менять не обязательно |
+| `SSO_KODEX_SHARED_SECRET` | learning-portal и content-api (VPS) | общий секрет — уже был задан в контейнере `learning-portal-backend-1`, скопирован в systemd-юнит `codex-content-api` |
+| `SSO_KODEX_TOKEN_TTL_SECONDS` | learning-portal | по умолчанию 60 |
+| `LMS_PROGRESS_SYNC_URL` | content-api (VPS) | `https://tirskix.space/api/v1/student-portal/progress-sync` — публичный домен LMS (не `kodex.tirskix.space`), путь с префиксом `/api/v1` |
 
 Секрет никогда не попадает в git ни одного из двух репозиториев — только в переменные окружения на сервере.
+
+### 3.4 Проверено вручную
+
+- Подписанный `PUT /api/lms-progress/:externalRef` с реальными данными (2 раскрытых дела, 2 значка) корректно посчитал сводку и отправил её на локальный мок-приёмник — тело и подпись совпали побайтово.
+- Прямой вызов настоящего продакшн-эндпоинта LMS (`https://tirskix.space/api/v1/student-portal/progress-sync`) с телом, подписанным реальным продакшн-секретом — `401` без подписи, `404` на несуществующего ученика с верной подписью (оба ответа — ожидаемое поведение их стороны, не ошибка).
