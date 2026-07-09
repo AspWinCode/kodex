@@ -102,10 +102,19 @@ function renderVeVersions(versions) {
   </div>`;
 }
 
+/* -- Режим дела: function (вызов функции) или script (запуск скрипта + stdout) -- */
+let _scriptMode = false;
+
+function isScriptMode(form) {
+  const cb = form ? form.querySelector('#f-script-mode') : null;
+  return cb ? cb.checked : _scriptMode;
+}
+
+/* -- Тест-строка: function mode -- */
 function renderVeTestRow(t, i) {
   const argsStr = Array.isArray(t.args) ? t.args.map(a => JSON.stringify(a)).join(', ') : '';
   const expectStr = t.expect !== undefined ? JSON.stringify(t.expect) : '';
-  return `<div class="ve-test-row" data-test>
+  return `<div class="ve-test-row" data-test data-mode="function">
     <span class="ve-test-n">#${i + 1}</span>
     <input class="ve-f" data-f="args" type="text" value="${esc(argsStr)}" placeholder='"hello", 42'>
     <span class="ve-arrow">→</span>
@@ -114,26 +123,49 @@ function renderVeTestRow(t, i) {
   </div>`;
 }
 
-function renderVeEvidenceItem(e, i) {
+/* -- Тест-строка: script mode (vars + expected stdout) -- */
+function renderVeScriptTestRow(t, i) {
+  const varsStr = t.vars && Object.keys(t.vars).length ? JSON.stringify(t.vars) : '';
+  const expectStr = t.expect !== undefined ? String(t.expect) : '';
+  return `<div class="ve-script-test-row" data-test data-mode="script">
+    <span class="ve-test-n">#${i + 1}</span>
+    <div class="ve-script-test-body">
+      <div class="ve-script-vars-row">
+        <span class="ve-script-label">vars</span>
+        <input class="ve-f" data-f="vars" type="text" value="${esc(varsStr)}" placeholder='{"name": "Ким", "x": 42}'>
+      </div>
+      <div class="ve-script-expect-row">
+        <span class="ve-script-label">вывод</span>
+        <textarea class="ve-f" data-f="expect" rows="2" placeholder="Агент Ким на связи">${esc(expectStr)}</textarea>
+      </div>
+    </div>
+    <button type="button" class="st-btn st-btn-s st-btn-danger ve-del-test">✕</button>
+  </div>`;
+}
+
+function renderVeEvidenceItem(e, i, scriptMode) {
   e = e || { id: `e${i + 1}`, name: '', tests: [] };
   const tests = Array.isArray(e.tests) ? e.tests : [];
+  const testRows = tests.map((t, ti) =>
+    scriptMode ? renderVeScriptTestRow(t, ti) : renderVeTestRow(t, ti)
+  ).join('');
   return `<div class="ve-row ve-evidence-item" data-ulika>
     <div class="ve-evidence-header">
       <input class="ve-f ve-id" data-f="id" type="text" value="${esc(e.id || `e${i + 1}`)}" placeholder="e1">
       <input class="ve-f ve-name" data-f="name" type="text" value="${esc(e.name || '')}" placeholder="Название улики">
       <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕ Улику</button>
     </div>
-    <div class="ve-tests-list">${tests.map((t, ti) => renderVeTestRow(t, ti)).join('')}</div>
+    <div class="ve-tests-list">${testRows}</div>
     <button type="button" class="st-btn st-btn-s ve-add-test">+ Тест</button>
   </div>`;
 }
 
-function renderVeEvidence(evidence) {
+function renderVeEvidence(evidence, scriptMode) {
   evidence = Array.isArray(evidence) ? evidence : [];
   return `<div class="st-field">
     <label>Улики и тесты <span class="st-hint">(обязательно)</span></label>
     <div class="ve-list" id="ve-evidence">
-      ${evidence.map((e, i) => renderVeEvidenceItem(e, i)).join('')}
+      ${evidence.map((e, i) => renderVeEvidenceItem(e, i, scriptMode)).join('')}
     </div>
     <button type="button" class="st-btn st-btn-s ve-add" data-list="ve-evidence" data-tpl="evidence">+ Улика</button>
     <textarea name="evidence" hidden></textarea>
@@ -155,8 +187,10 @@ function bindVeAddTest(btn) {
   btn.onclick = () => {
     const list = btn.previousElementSibling;
     const idx = list.children.length;
+    const form = btn.closest('form');
+    const scriptMode = isScriptMode(form);
     const div = document.createElement('div');
-    div.innerHTML = renderVeTestRow({}, idx);
+    div.innerHTML = scriptMode ? renderVeScriptTestRow({}, idx) : renderVeTestRow({}, idx);
     const row = div.firstElementChild;
     list.appendChild(row);
     bindVeDelTests(row.parentElement);
@@ -164,6 +198,33 @@ function bindVeAddTest(btn) {
 }
 
 function bindVisualEditors(form) {
+  // Переключатель script/function mode — перерисовывает редактор улик
+  const scriptCb = form.querySelector('#f-script-mode');
+  if (scriptCb) {
+    scriptCb.onchange = () => {
+      const sm = scriptCb.checked;
+      // Скрыть/показать поля fnName и starter
+      form.querySelectorAll('.fn-mode-field').forEach(el => {
+        el.style.display = sm ? 'none' : '';
+      });
+      // Перерисовать улики
+      const evidenceEl = form.querySelector('#ve-evidence');
+      if (evidenceEl) {
+        const newHtml = [...evidenceEl.querySelectorAll('[data-ulika]')].map((ulika, i) => {
+          const id = ulika.querySelector('[data-f=id]')?.value || `e${i + 1}`;
+          const name = ulika.querySelector('[data-f=name]')?.value || '';
+          return renderVeEvidenceItem({ id, name, tests: [] }, i, sm);
+        }).join('');
+        evidenceEl.innerHTML = newHtml;
+        evidenceEl.querySelectorAll('.ve-add-test').forEach(bindVeAddTest);
+        evidenceEl.querySelectorAll('[data-ulika] .ve-del').forEach(b => b.onclick = () => b.closest('[data-ulika]')?.remove());
+        bindVeDelTests(evidenceEl);
+      }
+    };
+    // Применить начальное состояние
+    if (scriptCb.checked) scriptCb.onchange();
+  }
+
   // Кнопки "Добавить строку"
   form.querySelectorAll('.ve-add').forEach(btn => {
     btn.onclick = () => {
@@ -185,7 +246,8 @@ function bindVisualEditors(form) {
           <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕</button>
         </div>`;
       } else if (tpl === 'evidence') {
-        div.innerHTML = renderVeEvidenceItem({}, list.children.length);
+        const sm = isScriptMode(form);
+        div.innerHTML = renderVeEvidenceItem({}, list.children.length, sm);
         div.querySelector('.ve-add-test') && bindVeAddTest(div.querySelector('.ve-add-test'));
       }
       const row = div.firstElementChild;
@@ -207,6 +269,8 @@ function bindVisualEditors(form) {
 }
 
 function syncVisualEditors(form) {
+  const scriptMode = isScriptMode(form);
+
   // Брифинг и финал
   for (const key of ['briefing', 'finale']) {
     const list = form.querySelector(`#ve-${key}`);
@@ -236,19 +300,27 @@ function syncVisualEditors(form) {
     form.querySelector('textarea[name="versions"]').value = JSON.stringify(data);
   }
 
-  // Улики
+  // Улики — function mode или script mode
   const evidenceEl = form.querySelector('#ve-evidence');
   if (evidenceEl) {
     const data = [...evidenceEl.querySelectorAll('[data-ulika]')].map((ulika, i) => ({
       id: ulika.querySelector('[data-f=id]').value || `e${i + 1}`,
       name: ulika.querySelector('[data-f=name]').value,
       tests: [...ulika.querySelectorAll('[data-test]')].map(test => {
-        const argsStr = test.querySelector('[data-f=args]').value.trim();
-        const expectStr = test.querySelector('[data-f=expect]').value.trim();
-        let args = [], expect = null;
-        try { args = JSON.parse('[' + argsStr + ']'); } catch { if (argsStr) args = [argsStr]; }
-        try { expect = JSON.parse(expectStr); } catch { expect = expectStr; }
-        return { args, expect };
+        if (scriptMode) {
+          const varsStr = test.querySelector('[data-f=vars]')?.value.trim() || '';
+          const expectVal = test.querySelector('[data-f=expect]')?.value ?? '';
+          let vars = {};
+          try { vars = varsStr ? JSON.parse(varsStr) : {}; } catch { vars = {}; }
+          return { vars, expect: expectVal };
+        } else {
+          const argsStr = test.querySelector('[data-f=args]')?.value.trim() || '';
+          const expectStr = test.querySelector('[data-f=expect]')?.value.trim() || '';
+          let args = [], expect = null;
+          try { args = JSON.parse('[' + argsStr + ']'); } catch { if (argsStr) args = [argsStr]; }
+          try { expect = JSON.parse(expectStr); } catch { expect = expectStr; }
+          return { args, expect };
+        }
       }),
     }));
     form.querySelector('textarea[name="evidence"]').value = JSON.stringify(data);
@@ -417,15 +489,19 @@ async function renderEditor(id, preset) {
       <div class="st-field"><label>Цель расследования</label><input type="text" name="goal" value="${esc(c.goal || '')}"></div>
       <div class="st-field"><label>Фигуранты</label><input type="text" name="suspects" value="${esc(c.suspects || '')}"></div>
       <div class="st-field"><label>Формулировка задачи</label><textarea name="task" rows="2">${esc(c.task || '')}</textarea></div>
-      <div class="st-field"><label>Имя функции (fnName)</label><input type="text" name="fnName" value="${esc(c.fnName || '')}"></div>
-      <div class="st-field"><label>Стартовый код (starter)</label><textarea class="st-mono" name="starter" rows="5">${esc(c.starter || '')}</textarea></div>
+      <div class="st-check" style="margin-bottom:4px">
+        <input type="checkbox" id="f-script-mode" ${!c.fnName ? 'checked' : ''}>
+        <label for="f-script-mode">Script mode — студент пишет скрипт (print, type и т.д.), функции нет</label>
+      </div>
+      <div class="fn-mode-field st-field"><label>Имя функции (fnName)</label><input type="text" name="fnName" value="${esc(c.fnName || '')}"></div>
+      <div class="fn-mode-field st-field"><label>Стартовый код (starter)</label><textarea class="st-mono" name="starter" rows="5">${esc(c.starter || '')}</textarea></div>
 
       ${renderVeDialogue('briefing', 'Брифинг', c.briefing)}
       <div class="st-field">
         <label>Материалы дела <span class="st-hint">— JSON</span></label>
         <textarea class="st-mono" name="materials" rows="5" data-json placeholder='[]'>${esc(JSON.stringify(c.materials ?? [], null, 2))}</textarea>
       </div>
-      ${renderVeEvidence(c.evidence)}
+      ${renderVeEvidence(c.evidence, !c.fnName)}
       ${renderVeHints(c.hints)}
       ${renderVeVersions(c.versions)}
       ${renderVeDialogue('finale', 'Финальная сцена (обязательно)', c.finale)}
@@ -458,8 +534,10 @@ async function renderEditor(id, preset) {
     draft.goal = fd.get('goal');
     draft.suspects = fd.get('suspects');
     draft.task = fd.get('task');
-    draft.fnName = fd.get('fnName');
-    draft.starter = fd.get('starter');
+    // Script mode: fnName пустой — раннер переключается в режим скрипта
+    const scriptModeOn = e.target.querySelector('#f-script-mode')?.checked;
+    draft.fnName = scriptModeOn ? '' : (fd.get('fnName') || '');
+    draft.starter = scriptModeOn ? '' : (fd.get('starter') || '');
 
     const jsonErrors = [];
     JSON_FIELDS.forEach(([key, label]) => {

@@ -247,6 +247,53 @@ def fmt_error(e):
     return f'{type(e).__name__}: {e}'
 
 
+def run_script_mode(code, evidence, has_alarm):
+    """Script mode: для каждого теста exec(code) с инжекцией vars, сравниваем stdout с expect.
+
+    Формат теста: {"vars": {"name": "Ким", "x": 42}, "expect": "Привет, Ким!"}
+    vars — необязательный; expect сравнивается без крайних пробелов/переносов.
+    """
+    import io
+    base_ns = {'new_turtle': lambda: MiniTurtle(), 'new_chart': lambda: MiniChart()}
+    results = []
+
+    for ev in evidence:
+        ev_result = {'evidenceId': ev['id'], 'pass': True}
+        for t in ev.get('tests', []):
+            test_ns = dict(base_ns)
+            for k, v in (t.get('vars') or {}).items():
+                test_ns[k] = v
+
+            captured = io.StringIO()
+            real_stdout = sys.stdout
+            sys.stdout = captured
+            try:
+                if has_alarm:
+                    signal.alarm(TIMEOUT_SECONDS)
+                exec(code, test_ns)
+                sys.stdout = real_stdout
+                if has_alarm:
+                    signal.alarm(0)
+                got = captured.getvalue().rstrip('\n')
+                expected = str(t['expect']).rstrip('\n')
+                if got != expected:
+                    ev_result = {'evidenceId': ev['id'], 'pass': False, 'crashed': False, 'test': t, 'got': got}
+                    break
+            except HarnessTimeout:
+                sys.stdout = real_stdout
+                print(json.dumps({'compileError': 'Превышено время выполнения — решение зациклилось или слишком медленное'}))
+                return
+            except Exception as e:
+                sys.stdout = real_stdout
+                if has_alarm:
+                    signal.alarm(0)
+                ev_result = {'evidenceId': ev['id'], 'pass': False, 'crashed': True, 'test': t, 'error': fmt_error(e)}
+                break
+        results.append(ev_result)
+
+    print(json.dumps({'compileError': None, 'results': results, 'lastResult': None}))
+
+
 def main():
     # Явно фиксируем UTF-8 независимо от локали окружения — на Windows
     # (локальная разработка без Docker) кодировка консоли по умолчанию
@@ -276,6 +323,14 @@ def main():
 
     if has_alarm:
         signal.signal(signal.SIGALRM, _on_alarm)
+
+    # Script mode: fnName пустой — запускаем код как скрипт, сравниваем stdout
+    if not fn_name:
+        run_script_mode(code, evidence, has_alarm)
+        return
+
+    # Function mode: компилируем код, ищем функцию, вызываем с args
+    if has_alarm:
         signal.alarm(TIMEOUT_SECONDS)
 
     namespace = {'new_turtle': lambda: MiniTurtle(), 'new_chart': lambda: MiniChart()}

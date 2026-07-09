@@ -371,8 +371,8 @@ async function handleApi(req, res, pathname, query) {
   if (pathname === '/api/run' && req.method === 'POST') {
     let payload;
     try { payload = await readJsonBody(req); } catch (e) { sendJson(res, 400, { error: 'некорректный JSON' }); return true; }
-    if (!payload || !payload.fnName || !Array.isArray(payload.evidence)) {
-      sendJson(res, 400, { error: 'ожидались code, fnName, evidence' });
+    if (!payload || !Array.isArray(payload.evidence)) {
+      sendJson(res, 400, { error: 'ожидались code, evidence (fnName необязателен в script-режиме)' });
       return true;
     }
     const result = await runPython({ code: payload.code || '', fnName: payload.fnName, evidence: payload.evidence });

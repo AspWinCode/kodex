@@ -166,3 +166,18 @@ a.st-link:hover { text-decoration: underline; }
 .ve-test-n { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); text-align: right; }
 .ve-arrow { font-family: var(--font-mono); color: var(--text-3); text-align: center; }
 .ve-test-row input { font-family: var(--font-mono); font-size: 12px; }
+
+/* Script mode тесты */
+.ve-script-test-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px; background: var(--bg-raised); border-radius: var(--r-s);
+  border: 1px solid var(--border);
+}
+.ve-script-test-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.ve-script-vars-row, .ve-script-expect-row { display: flex; align-items: flex-start; gap: 6px; }
+.ve-script-label {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-3);
+  letter-spacing: .04em; width: 42px; flex-shrink: 0; padding-top: 10px; text-align: right;
+}
+.ve-script-vars-row input { font-family: var(--font-mono); font-size: 12px; flex: 1; }
+.ve-script-expect-row textarea { font-family: var(--font-mono); font-size: 12px; flex: 1; resize: vertical; }
