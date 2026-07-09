@@ -35,14 +35,225 @@ const SIMPLE_FIELDS = [
   ['rewardRep', 'Награда: репутация', 'number', '60'],
 ];
 
+// materials — обычный JSON-textarea; остальные поля используют визуальные редакторы
 const JSON_FIELDS = [
-  ['briefing', 'Брифинг', '[{ "curator": "viktor", "text": "" }]'],
+  ['briefing', 'Брифинг', '[]'],
   ['materials', 'Материалы дела', '[]'],
-  ['evidence', 'Улики и тесты (обязательно)', '[{ "id": "e1", "name": "", "tests": [{ "args": [], "expect": null }] }]'],
-  ['hints', 'Подсказки по уровням (обязательно)', '{ "1": "", "2": "", "3": "" }'],
-  ['versions', 'Версии для отчёта закрытия (обязательно, минимум одна verified: true)', '[{ "text": "", "correct": true }, { "text": "", "correct": false }]'],
-  ['finale', 'Финальная сцена (обязательно)', '[{ "curator": "viktor", "text": "" }]'],
+  ['evidence', 'Улики и тесты', '[]'],
+  ['hints', 'Подсказки', '{}'],
+  ['versions', 'Версии отчёта', '[]'],
+  ['finale', 'Финальная сцена', '[]'],
 ];
+
+/* ============ Визуальные редакторы JSON-полей ============ */
+
+function veCuratorOpts(selected) {
+  return Object.keys(CURATORS).map(k =>
+    `<option value="${k}" ${selected === k ? 'selected' : ''}>${esc(CURATORS[k].name)}</option>`
+  ).join('');
+}
+
+function renderVeDialogue(key, label, items) {
+  items = Array.isArray(items) ? items : [];
+  return `<div class="st-field">
+    <label>${label}</label>
+    <div class="ve-list" id="ve-${key}">
+      ${items.map(it => `<div class="ve-row ve-dialogue-row">
+        <select class="ve-f" data-f="curator">${veCuratorOpts(it.curator)}</select>
+        <textarea class="ve-f" data-f="text" rows="2">${esc(it.text || '')}</textarea>
+        <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕</button>
+      </div>`).join('')}
+    </div>
+    <button type="button" class="st-btn st-btn-s ve-add" data-list="ve-${key}" data-tpl="dialogue">+ Реплика</button>
+    <textarea name="${key}" hidden></textarea>
+  </div>`;
+}
+
+function renderVeHints(hints) {
+  hints = hints && typeof hints === 'object' ? hints : {};
+  return `<div class="st-field">
+    <label>Подсказки по уровням <span class="st-hint">(обязательно)</span></label>
+    <div id="ve-hints">
+      ${[1, 2, 3].map(lvl => `<div class="ve-hints-row">
+        <span class="ve-hints-label">Уровень ${lvl}</span>
+        <textarea class="ve-f" data-hint="${lvl}" rows="2">${esc(hints[lvl] || hints[String(lvl)] || '')}</textarea>
+      </div>`).join('')}
+    </div>
+    <textarea name="hints" hidden></textarea>
+  </div>`;
+}
+
+function renderVeVersions(versions) {
+  versions = Array.isArray(versions) ? versions : [];
+  return `<div class="st-field">
+    <label>Версии для отчёта закрытия <span class="st-hint">(обязательно, минимум одна correct)</span></label>
+    <div class="ve-list" id="ve-versions">
+      ${versions.map(v => `<div class="ve-row ve-version-row">
+        <label class="ve-correct-label">
+          <input type="checkbox" class="ve-f" data-f="correct" ${v.correct ? 'checked' : ''}>
+          Верная версия
+        </label>
+        <textarea class="ve-f" data-f="text" rows="2">${esc(v.text || '')}</textarea>
+        <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕</button>
+      </div>`).join('')}
+    </div>
+    <button type="button" class="st-btn st-btn-s ve-add" data-list="ve-versions" data-tpl="version">+ Версия</button>
+    <textarea name="versions" hidden></textarea>
+  </div>`;
+}
+
+function renderVeTestRow(t, i) {
+  const argsStr = Array.isArray(t.args) ? t.args.map(a => JSON.stringify(a)).join(', ') : '';
+  const expectStr = t.expect !== undefined ? JSON.stringify(t.expect) : '';
+  return `<div class="ve-test-row" data-test>
+    <span class="ve-test-n">#${i + 1}</span>
+    <input class="ve-f" data-f="args" type="text" value="${esc(argsStr)}" placeholder='"hello", 42'>
+    <span class="ve-arrow">→</span>
+    <input class="ve-f" data-f="expect" type="text" value="${esc(expectStr)}" placeholder='"OLLEH"'>
+    <button type="button" class="st-btn st-btn-s st-btn-danger ve-del-test">✕</button>
+  </div>`;
+}
+
+function renderVeEvidenceItem(e, i) {
+  e = e || { id: `e${i + 1}`, name: '', tests: [] };
+  const tests = Array.isArray(e.tests) ? e.tests : [];
+  return `<div class="ve-row ve-evidence-item" data-ulika>
+    <div class="ve-evidence-header">
+      <input class="ve-f ve-id" data-f="id" type="text" value="${esc(e.id || `e${i + 1}`)}" placeholder="e1">
+      <input class="ve-f ve-name" data-f="name" type="text" value="${esc(e.name || '')}" placeholder="Название улики">
+      <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕ Улику</button>
+    </div>
+    <div class="ve-tests-list">${tests.map((t, ti) => renderVeTestRow(t, ti)).join('')}</div>
+    <button type="button" class="st-btn st-btn-s ve-add-test">+ Тест</button>
+  </div>`;
+}
+
+function renderVeEvidence(evidence) {
+  evidence = Array.isArray(evidence) ? evidence : [];
+  return `<div class="st-field">
+    <label>Улики и тесты <span class="st-hint">(обязательно)</span></label>
+    <div class="ve-list" id="ve-evidence">
+      ${evidence.map((e, i) => renderVeEvidenceItem(e, i)).join('')}
+    </div>
+    <button type="button" class="st-btn st-btn-s ve-add" data-list="ve-evidence" data-tpl="evidence">+ Улика</button>
+    <textarea name="evidence" hidden></textarea>
+  </div>`;
+}
+
+function bindVeDelTests(container) {
+  container.querySelectorAll('.ve-del-test').forEach(btn => {
+    btn.onclick = () => {
+      const row = btn.closest('[data-test]');
+      const list = row.parentElement;
+      row.remove();
+      list.querySelectorAll('.ve-test-n').forEach((el, i) => el.textContent = `#${i + 1}`);
+    };
+  });
+}
+
+function bindVeAddTest(btn) {
+  btn.onclick = () => {
+    const list = btn.previousElementSibling;
+    const idx = list.children.length;
+    const div = document.createElement('div');
+    div.innerHTML = renderVeTestRow({}, idx);
+    const row = div.firstElementChild;
+    list.appendChild(row);
+    bindVeDelTests(row.parentElement);
+  };
+}
+
+function bindVisualEditors(form) {
+  // Кнопки "Добавить строку"
+  form.querySelectorAll('.ve-add').forEach(btn => {
+    btn.onclick = () => {
+      const list = document.getElementById(btn.dataset.list);
+      const tpl = btn.dataset.tpl;
+      const div = document.createElement('div');
+      if (tpl === 'dialogue') {
+        div.innerHTML = `<div class="ve-row ve-dialogue-row">
+          <select class="ve-f" data-f="curator">${veCuratorOpts('')}</select>
+          <textarea class="ve-f" data-f="text" rows="2"></textarea>
+          <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕</button>
+        </div>`;
+      } else if (tpl === 'version') {
+        div.innerHTML = `<div class="ve-row ve-version-row">
+          <label class="ve-correct-label">
+            <input type="checkbox" class="ve-f" data-f="correct"> Верная версия
+          </label>
+          <textarea class="ve-f" data-f="text" rows="2"></textarea>
+          <button type="button" class="st-btn st-btn-s st-btn-danger ve-del">✕</button>
+        </div>`;
+      } else if (tpl === 'evidence') {
+        div.innerHTML = renderVeEvidenceItem({}, list.children.length);
+        div.querySelector('.ve-add-test') && bindVeAddTest(div.querySelector('.ve-add-test'));
+      }
+      const row = div.firstElementChild;
+      if (!row) return;
+      list.appendChild(row);
+      row.querySelectorAll('.ve-del').forEach(b => b.onclick = () => b.closest('.ve-row, [data-ulika]')?.remove());
+      bindVeDelTests(row);
+    };
+  });
+
+  // Кнопки "Удалить строку"
+  form.querySelectorAll('.ve-del').forEach(btn => {
+    btn.onclick = () => btn.closest('.ve-row, [data-ulika]')?.remove();
+  });
+
+  // Кнопки "Добавить тест" внутри улик
+  form.querySelectorAll('.ve-add-test').forEach(bindVeAddTest);
+  bindVeDelTests(form);
+}
+
+function syncVisualEditors(form) {
+  // Брифинг и финал
+  for (const key of ['briefing', 'finale']) {
+    const list = form.querySelector(`#ve-${key}`);
+    if (!list) continue;
+    const data = [...list.querySelectorAll('.ve-dialogue-row')].map(row => ({
+      curator: row.querySelector('[data-f=curator]').value,
+      text: row.querySelector('[data-f=text]').value,
+    }));
+    form.querySelector(`textarea[name="${key}"]`).value = JSON.stringify(data);
+  }
+
+  // Подсказки
+  const hintsEl = form.querySelector('#ve-hints');
+  if (hintsEl) {
+    const data = {};
+    hintsEl.querySelectorAll('[data-hint]').forEach(el => { data[el.dataset.hint] = el.value; });
+    form.querySelector('textarea[name="hints"]').value = JSON.stringify(data);
+  }
+
+  // Версии
+  const versionsEl = form.querySelector('#ve-versions');
+  if (versionsEl) {
+    const data = [...versionsEl.querySelectorAll('.ve-version-row')].map(row => ({
+      text: row.querySelector('[data-f=text]').value,
+      correct: row.querySelector('[data-f=correct]').checked,
+    }));
+    form.querySelector('textarea[name="versions"]').value = JSON.stringify(data);
+  }
+
+  // Улики
+  const evidenceEl = form.querySelector('#ve-evidence');
+  if (evidenceEl) {
+    const data = [...evidenceEl.querySelectorAll('[data-ulika]')].map((ulika, i) => ({
+      id: ulika.querySelector('[data-f=id]').value || `e${i + 1}`,
+      name: ulika.querySelector('[data-f=name]').value,
+      tests: [...ulika.querySelectorAll('[data-test]')].map(test => {
+        const argsStr = test.querySelector('[data-f=args]').value.trim();
+        const expectStr = test.querySelector('[data-f=expect]').value.trim();
+        let args = [], expect = null;
+        try { args = JSON.parse('[' + argsStr + ']'); } catch { if (argsStr) args = [argsStr]; }
+        try { expect = JSON.parse(expectStr); } catch { expect = expectStr; }
+        return { args, expect };
+      }),
+    }));
+    form.querySelector('textarea[name="evidence"]').value = JSON.stringify(data);
+  }
+}
 
 /* ---------- статусы рецензии (Studio Architecture, docs/09) ---------- */
 const STATUS_LABEL = {
@@ -209,11 +420,15 @@ async function renderEditor(id, preset) {
       <div class="st-field"><label>Имя функции (fnName)</label><input type="text" name="fnName" value="${esc(c.fnName || '')}"></div>
       <div class="st-field"><label>Стартовый код (starter)</label><textarea class="st-mono" name="starter" rows="5">${esc(c.starter || '')}</textarea></div>
 
-      ${JSON_FIELDS.map(([key, label, placeholder]) => `
-        <div class="st-field">
-          <label>${label} <span class="st-hint">— JSON</span></label>
-          <textarea class="st-mono" name="${key}" rows="5" data-json placeholder='${esc(placeholder)}'>${esc(JSON.stringify(c[key] ?? (key === 'hints' ? {} : []), null, 2))}</textarea>
-        </div>`).join('')}
+      ${renderVeDialogue('briefing', 'Брифинг', c.briefing)}
+      <div class="st-field">
+        <label>Материалы дела <span class="st-hint">— JSON</span></label>
+        <textarea class="st-mono" name="materials" rows="5" data-json placeholder='[]'>${esc(JSON.stringify(c.materials ?? [], null, 2))}</textarea>
+      </div>
+      ${renderVeEvidence(c.evidence)}
+      ${renderVeHints(c.hints)}
+      ${renderVeVersions(c.versions)}
+      ${renderVeDialogue('finale', 'Финальная сцена (обязательно)', c.finale)}
 
       <div class="st-actions">
         <button type="submit" class="st-btn st-btn-primary">Сохранить</button>
@@ -224,11 +439,13 @@ async function renderEditor(id, preset) {
   `;
 
   if (!isNew) renderReviewPanel(id);
+  bindVisualEditors(APP.querySelector('#case-form'));
 
   APP.querySelector('#case-form').onsubmit = async (e) => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('button[type=submit]');
     submitBtn.disabled = true;
+    syncVisualEditors(e.target);
 
     const fd = new FormData(e.target);
     const draft = { id: isNew ? String(fd.get('id') || '').trim() : id };
