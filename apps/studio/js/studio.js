@@ -1,4 +1,4 @@
-/* ============ Codex Studio — минимальный Case Editor ============ *
+﻿/* ============ Codex Studio — минимальный Case Editor ============ *
  * Studio Architecture (docs/09, раздел 3 — Case Editor): список дел + форма
  * редактирования одного дела поверх тех же данных, что читает Player
  * (packages/game-data/data.js). Правки хранятся не в localStorage браузера,
@@ -26,7 +26,7 @@ function toast(kind, text) {
 
 /* ---------- схема простых полей формы ---------- */
 const SIMPLE_FIELDS = [
-  ['num', 'Номер дела', 'text', 'CASE-011'],
+  ['num', 'Номер дела', 'text', 'ДЕЛО-011'],
   ['title', 'Название', 'text', ''],
   ['curator', 'Куратор', 'select', ''],
   ['rank', 'Требуемый допуск', 'number', '1'],
