@@ -65,7 +65,7 @@ const CASES = [
   /* ========== МОДУЛЬ 1 — Основы Python ========== */
   {
     id: 'case-b01',
-    num: 'ДЕЛО-B01',
+    num: 'ДЕЛО-001',
     title: 'Первый сеанс связи',
     curator: 'viktor',
     rank: 1,
@@ -128,7 +128,7 @@ const CASES = [
   },
   {
     id: 'case-b02',
-    num: 'ДЕЛО-B02',
+    num: 'ДЕЛО-002',
     title: 'Инвентаризация улик',
     curator: 'anna',
     rank: 1,
@@ -191,7 +191,7 @@ const CASES = [
   },
   {
     id: 'case-b03',
-    num: 'ДЕЛО-B03',
+    num: 'ДЕЛО-003',
     title: 'Досье подозреваемого',
     curator: 'anna',
     rank: 1,
@@ -254,7 +254,7 @@ const CASES = [
   },
   {
     id: 'case-b04',
-    num: 'ДЕЛО-B04',
+    num: 'ДЕЛО-004',
     title: 'Координаты тайника',
     curator: 'rita',
     rank: 1,
@@ -315,7 +315,7 @@ const CASES = [
   },
   {
     id: 'case-b05',
-    num: 'ДЕЛО-B05',
+    num: 'ДЕЛО-005',
     title: 'Отчёт агента',
     curator: 'viktor',
     rank: 1,
@@ -377,7 +377,7 @@ const CASES = [
   },
   {
     id: 'case-b06',
-    num: 'ДЕЛО-B06',
+    num: 'ДЕЛО-006',
     title: 'Длина шифровки',
     curator: 'anna',
     rank: 1,
@@ -437,7 +437,7 @@ const CASES = [
   },
   {
     id: 'case-b07',
-    num: 'ДЕЛО-B07',
+    num: 'ДЕЛО-007',
     title: 'Нормализация позывного',
     curator: 'anna',
     rank: 1,
@@ -497,7 +497,7 @@ const CASES = [
   },
   {
     id: 'case-b08',
-    num: 'ДЕЛО-B08',
+    num: 'ДЕЛО-008',
     title: 'Индекс маршрута',
     curator: 'rita',
     rank: 1,
@@ -558,7 +558,7 @@ const CASES = [
   },
   {
     id: 'case-b09',
-    num: 'ДЕЛО-B09',
+    num: 'ДЕЛО-009',
     title: 'Проверка допуска',
     curator: 'viktor',
     rank: 1,
@@ -619,7 +619,7 @@ const CASES = [
   },
   {
     id: 'case-b10',
-    num: 'ДЕЛО-B10',
+    num: 'ДЕЛО-010',
     title: 'Двойной фильтр',
     curator: 'viktor',
     rank: 1,
@@ -679,7 +679,7 @@ const CASES = [
   },
   {
     id: 'case-b11',
-    num: 'ДЕЛО-B11',
+    num: 'ДЕЛО-011',
     title: 'Коррекция координат',
     curator: 'rita',
     rank: 1,
@@ -740,7 +740,7 @@ const CASES = [
   },
   {
     id: 'case-b12',
-    num: 'ДЕЛО-B12',
+    num: 'ДЕЛО-012',
     title: 'Пополнение фонда улик',
     curator: 'anna',
     rank: 1,
@@ -800,7 +800,7 @@ const CASES = [
   },
   {
     id: 'case-b13',
-    num: 'ДЕЛО-B13',
+    num: 'ДЕЛО-013',
     title: 'Протокол наблюдения',
     curator: 'rita',
     rank: 1,
@@ -858,7 +858,7 @@ const CASES = [
   },
   {
     id: 'case-b14',
-    num: 'ДЕЛО-B14',
+    num: 'ДЕЛО-014',
     title: 'Экспертиза данных',
     curator: 'anna',
     rank: 1,
@@ -917,7 +917,7 @@ const CASES = [
   },
   {
     id: 'case-b15',
-    num: 'ДЕЛО-B15',
+    num: 'ДЕЛО-015',
     title: 'Сводный рапорт',
     curator: 'viktor',
     rank: 1,
@@ -970,7 +970,7 @@ const CASES = [
   /* ========== МОДУЛЬ 2 — Управляющие конструкции ========== */
   {
     id: 'case-001',
-    num: 'ДЕЛО-001',
+    num: 'ДЕЛО-016',
     title: 'Перехваченный шифр',
     curator: 'viktor',
     rank: 1,
@@ -1053,7 +1053,7 @@ const CASES = [
   },
   {
     id: 'case-002',
-    num: 'ДЕЛО-002',
+    num: 'ДЕЛО-017',
     title: 'Молчащий свидетель',
     curator: 'anna',
     rank: 1,
@@ -1124,7 +1124,7 @@ const CASES = [
   },
   {
     id: 'case-004',
-    num: 'ДЕЛО-004',
+    num: 'ДЕЛО-018',
     title: 'Пропускной пункт',
     curator: 'rita',
     rank: 1,
@@ -1195,7 +1195,7 @@ const CASES = [
   },
   {
     id: 'case-005',
-    num: 'ДЕЛО-005',
+    num: 'ДЕЛО-019',
     title: 'Ночной обход',
     curator: 'anna',
     rank: 1,
@@ -1266,7 +1266,7 @@ const CASES = [
   },
   {
     id: 'case-006',
-    num: 'ДЕЛО-006',
+    num: 'ДЕЛО-020',
     title: 'Перекрёстная сверка',
     curator: 'viktor',
     rank: 1,
@@ -1338,7 +1338,7 @@ const CASES = [
   /* ========== МОДУЛЬ 3 — Структуры данных ========== */
   {
     id: 'case-003',
-    num: 'ДЕЛО-003',
+    num: 'ДЕЛО-021',
     title: 'Архив без описи',
     curator: 'rita',
     rank: 1,
@@ -1408,7 +1408,7 @@ const CASES = [
   },
   {
     id: 'case-007',
-    num: 'ДЕЛО-007',
+    num: 'ДЕЛО-022',
     title: 'Досье без имени',
     curator: 'rita',
     rank: 1,
@@ -1477,7 +1477,7 @@ const CASES = [
   },
   {
     id: 'case-008',
-    num: 'ДЕЛО-008',
+    num: 'ДЕЛО-023',
     title: 'Диапазон перехвата',
     curator: 'anna',
     rank: 1,
@@ -1547,7 +1547,7 @@ const CASES = [
   },
   {
     id: 'case-009',
-    num: 'ДЕЛО-009',
+    num: 'ДЕЛО-024',
     title: 'Итоговая справка',
     curator: 'viktor',
     rank: 1,
@@ -1617,7 +1617,7 @@ const CASES = [
   },
   {
     id: 'case-010',
-    num: 'ДЕЛО-010',
+    num: 'ДЕЛО-025',
     title: 'Первый след',
     curator: 'viktor',
     rank: 1,
@@ -1686,7 +1686,7 @@ const CASES = [
   },
   {
     id: 'case-011',
-    num: 'ДЕЛО-011',
+    num: 'ДЕЛО-026',
     title: 'Особый список',
     curator: 'rita',
     rank: 1,
@@ -1725,7 +1725,7 @@ const CASES = [
   },
   {
     id: 'case-019',
-    num: 'ДЕЛО-019',
+    num: 'ДЕЛО-027',
     title: 'Неизменная координата',
     curator: 'rita',
     rank: 1,
@@ -1785,7 +1785,7 @@ const CASES = [
   },
   {
     id: 'case-020',
-    num: 'ДЕЛО-020',
+    num: 'ДЕЛО-028',
     title: 'Уникальные подозреваемые',
     curator: 'anna',
     rank: 1,
@@ -1847,7 +1847,7 @@ const CASES = [
   /* ========== МОДУЛЬ 4 — Функции ========== */
   {
     id: 'case-015',
-    num: 'ДЕЛО-015',
+    num: 'ДЕЛО-029',
     title: 'Скидка по умолчанию',
     curator: 'rita',
     rank: 2,
@@ -1908,7 +1908,7 @@ const CASES = [
   },
   {
     id: 'case-016',
-    num: 'ДЕЛО-016',
+    num: 'ДЕЛО-030',
     title: 'Вложенный протокол',
     curator: 'rita',
     rank: 2,
@@ -1968,7 +1968,7 @@ const CASES = [
   },
   {
     id: 'case-017',
-    num: 'ДЕЛО-017',
+    num: 'ДЕЛО-031',
     title: 'Комбинации шифра',
     curator: 'anna',
     rank: 2,
@@ -2029,7 +2029,7 @@ const CASES = [
   },
   {
     id: 'case-018',
-    num: 'ДЕЛО-018',
+    num: 'ДЕЛО-032',
     title: 'Сеть контактов',
     curator: 'viktor',
     rank: 2,
@@ -2089,7 +2089,7 @@ const CASES = [
   },
   {
     id: 'case-021b',
-    num: 'ДЕЛО-021Б',
+    num: 'ДЕЛО-033',
     title: 'Единый счётчик обращений',
     curator: 'viktor',
     rank: 2,
@@ -2153,7 +2153,7 @@ const CASES = [
   /* ========== МОДУЛЬ 5 — Графика ========== */
   {
     id: 'case-022',
-    num: 'ДЕЛО-022',
+    num: 'ДЕЛО-034',
     title: 'Периметр охраняемой зоны',
     curator: 'rita',
     rank: 2,
@@ -2214,7 +2214,7 @@ const CASES = [
   },
   {
     id: 'case-023',
-    num: 'ДЕЛО-023',
+    num: 'ДЕЛО-035',
     title: 'Форма маршрута патруля',
     curator: 'rita',
     rank: 2,
@@ -2265,7 +2265,7 @@ const CASES = [
   },
   {
     id: 'case-024',
-    num: 'ДЕЛО-024',
+    num: 'ДЕЛО-036',
     title: 'Пунктирная граница',
     curator: 'anna',
     rank: 2,
@@ -2325,7 +2325,7 @@ const CASES = [
   /* ========== МОДУЛЬ 6 — Практические расследования ========== */
   {
     id: 'case-025',
-    num: 'ДЕЛО-025',
+    num: 'ДЕЛО-037',
     title: 'Сводное досье',
     curator: 'viktor',
     rank: 3,
@@ -2377,7 +2377,7 @@ const CASES = [
   },
   {
     id: 'case-026',
-    num: 'ДЕЛО-026',
+    num: 'ДЕЛО-038',
     title: 'Маршрут через контрольные точки',
     curator: 'rita',
     rank: 3,
@@ -2434,7 +2434,7 @@ const CASES = [
   },
   {
     id: 'case-027',
-    num: 'ДЕЛО-027',
+    num: 'ДЕЛО-039',
     title: 'Проверенная сеть',
     curator: 'anna',
     rank: 3,
@@ -2488,7 +2488,7 @@ const CASES = [
   /* ========== МОДУЛЬ 7 — NumPy ========== */
   {
     id: 'case-012',
-    num: 'ДЕЛО-012',
+    num: 'ДЕЛО-040',
     title: 'Точная сводка датчиков',
     curator: 'anna',
     rank: 2,
@@ -2548,7 +2548,7 @@ const CASES = [
   },
   {
     id: 'case-028',
-    num: 'ДЕЛО-028',
+    num: 'ДЕЛО-041',
     title: 'Срез показаний',
     curator: 'anna',
     rank: 3,
@@ -2599,7 +2599,7 @@ const CASES = [
   },
   {
     id: 'case-029',
-    num: 'ДЕЛО-029',
+    num: 'ДЕЛО-042',
     title: 'Матрица датчиков',
     curator: 'rita',
     rank: 3,
@@ -2650,7 +2650,7 @@ const CASES = [
   },
   {
     id: 'case-030',
-    num: 'ДЕЛО-030',
+    num: 'ДЕЛО-043',
     title: 'Фильтр аномалий',
     curator: 'anna',
     rank: 3,
@@ -2701,7 +2701,7 @@ const CASES = [
   },
   {
     id: 'case-031',
-    num: 'ДЕЛО-031',
+    num: 'ДЕЛО-044',
     title: 'Случайная проверка',
     curator: 'rita',
     rank: 3,
@@ -2755,7 +2755,7 @@ const CASES = [
   /* ========== МОДУЛЬ 8 — Pandas ========== */
   {
     id: 'case-013',
-    num: 'ДЕЛО-013',
+    num: 'ДЕЛО-045',
     title: 'Таблица фигурантов',
     curator: 'viktor',
     rank: 2,
@@ -2812,7 +2812,7 @@ const CASES = [
   },
   {
     id: 'case-032',
-    num: 'ДЕЛО-032',
+    num: 'ДЕЛО-046',
     title: 'Ряд наблюдений',
     curator: 'anna',
     rank: 3,
@@ -2862,7 +2862,7 @@ const CASES = [
   },
   {
     id: 'case-033',
-    num: 'ДЕЛО-033',
+    num: 'ДЕЛО-047',
     title: 'Отбор по условию',
     curator: 'viktor',
     rank: 3,
@@ -2911,7 +2911,7 @@ const CASES = [
   },
   {
     id: 'case-034',
-    num: 'ДЕЛО-034',
+    num: 'ДЕЛО-048',
     title: 'Сортировка по риску',
     curator: 'viktor',
     rank: 3,
@@ -2960,7 +2960,7 @@ const CASES = [
   },
   {
     id: 'case-035',
-    num: 'ДЕЛО-035',
+    num: 'ДЕЛО-049',
     title: 'Импорт ведомости',
     curator: 'rita',
     rank: 3,
@@ -3010,7 +3010,7 @@ const CASES = [
   },
   {
     id: 'case-036',
-    num: 'ДЕЛО-036',
+    num: 'ДЕЛО-050',
     title: 'Группировка по куратору',
     curator: 'anna',
     rank: 3,
@@ -3058,7 +3058,7 @@ const CASES = [
   },
   {
     id: 'case-037',
-    num: 'ДЕЛО-037',
+    num: 'ДЕЛО-051',
     title: 'Сводная таблица риска',
     curator: 'viktor',
     rank: 3,
@@ -3108,7 +3108,7 @@ const CASES = [
   /* ========== МОДУЛЬ 9 — Визуализация ========== */
   {
     id: 'case-038',
-    num: 'ДЕЛО-038',
+    num: 'ДЕЛО-052',
     title: 'Диаграмма по кураторам',
     curator: 'viktor',
     rank: 3,
@@ -3167,7 +3167,7 @@ const CASES = [
   },
   {
     id: 'case-039',
-    num: 'ДЕЛО-039',
+    num: 'ДЕЛО-053',
     title: 'Линия времени наблюдения',
     curator: 'anna',
     rank: 3,
@@ -3217,7 +3217,7 @@ const CASES = [
   },
   {
     id: 'case-040',
-    num: 'ДЕЛО-040',
+    num: 'ДЕЛО-054',
     title: 'Гистограмма распределения',
     curator: 'rita',
     rank: 3,
@@ -3267,17 +3267,17 @@ const CASES = [
     ],
   },
   {
-    id: 'case-014', num: 'ДЕЛО-014', title: 'Двойник', curator: 'viktor', rank: 2, difficulty: 3,
+    id: 'case-014', num: 'ДЕЛО-055', title: 'Двойник', curator: 'viktor', rank: 2, difficulty: 3,
     rewardCredits: 80, rewardRep: 110, playable: false,
     anno: 'В сети агентства появился агент с чужим позывным…',
   },
   {
-    id: 'case-021', num: 'ДЕЛО-021', title: 'Ночной канал', curator: 'anna', rank: 2, difficulty: 3,
+    id: 'case-021', num: 'ДЕЛО-056', title: 'Ночной канал', curator: 'anna', rank: 2, difficulty: 3,
     rewardCredits: 80, rewardRep: 110, playable: false,
     anno: 'Каждую ночь в 03:00 кто-то выходит на связь по закрытому каналу…',
   },
   {
-    id: 'case-042', num: 'ДЕЛО-042', title: 'Призрак сервера', curator: 'rita', rank: 3, difficulty: 3,
+    id: 'case-042', num: 'ДЕЛО-057', title: 'Призрак сервера', curator: 'rita', rank: 3, difficulty: 3,
     rewardCredits: 120, rewardRep: 160, playable: false,
     anno: 'Выведенный из строя сервер продолжает отвечать на запросы…',
   },
