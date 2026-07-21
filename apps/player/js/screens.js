@@ -305,19 +305,10 @@ function renderHub(root) {
         <div class="stat-mini"><span>Баланс</span><span class="mono">${S.agent.credits} кр</span></div>
         <div class="stat-mini"><span>Серия раскрытий</span><span class="mono">${S.agent.streak}</span></div>
         <button class="btn btn-secondary btn-s" data-go="/terminal/dossier">Личный терминал</button>
-        <button class="btn btn-ghost btn-s" data-act="reset-progress" style="margin-top:4px;color:var(--t3)">Сбросить прогресс</button>
       </div>
     </div>
   </div>`;
   bindCommon(root);
-  root.querySelector('[data-act="reset-progress"]')?.addEventListener('click', () => {
-    confirmDialog(
-      'Сбросить весь прогресс?',
-      'Все дела, кредиты, репутация и история будут удалены. Это действие необратимо.',
-      'Сбросить',
-      () => { resetState(); location.reload(); }
-    );
-  });
 }
 
 function msgItemHTML(m) {
