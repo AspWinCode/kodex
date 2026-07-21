@@ -49,8 +49,12 @@ function save() {
 }
 
 function resetState() {
+  const ref = S.lmsExternalRef;
   localStorage.removeItem(STORE_KEY);
   S = defaultState();
+  if (ref) {
+    fetch(`/api/lms-progress/${encodeURIComponent(ref)}`, { method: 'DELETE' }).catch(() => {});
+  }
 }
 
 /* ---------- прогресс через LMS SSO (docs/17-lms-integration.md) ----------

@@ -361,6 +361,14 @@ async function handleApi(req, res, pathname, query) {
       pushLmsProgressSummary(externalRef, payload.state); // best-effort, не блокирует ответ
       return true;
     }
+
+    if (req.method === 'DELETE') {
+      const store = await readLmsProgressStore();
+      delete store[externalRef];
+      await writeLmsProgressStore(store);
+      sendJson(res, 200, { ok: true });
+      return true;
+    }
   }
 
   // POST /api/run — исполнение решения агента (Evaluation Engine).
